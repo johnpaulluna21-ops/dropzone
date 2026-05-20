@@ -1,6 +1,17 @@
- import { supabase } from "../../../lib/supabase";
+import { supabase } from "../../../lib/supabase";
 
-export default async function SharePage({ params }: { params: { id: string } }) {
+interface FileRecord {
+  id: string;
+  filename: string;
+  filesize: number;
+  url: string;
+}
+
+interface Props {
+  params: { id: string };
+}
+
+export default async function SharePage({ params }: Props) {
   const { data: files } = await supabase
     .from("files")
     .select("*")
@@ -9,12 +20,12 @@ export default async function SharePage({ params }: { params: { id: string } }) 
   return (
     <main className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-8">
       <div className="max-w-xl w-full bg-white rounded-2xl shadow-lg p-10 flex flex-col gap-6">
-        <h1 className="text-3xl font-bold text-gray-900">📁 Shared Files</h1>
+        <h1 className="text-3xl font-bold text-gray-900">Shared Files</h1>
         <p className="text-gray-500">Someone shared these files with you via DropZone.</p>
 
         {files && files.length > 0 ? (
           <div className="flex flex-col gap-3">
-            {files.map((file) => (
+            {files.map((file: FileRecord) => (
               
                 key={file.id}
                 href={file.url}
@@ -28,7 +39,7 @@ export default async function SharePage({ params }: { params: { id: string } }) 
                     {(file.filesize / 1024).toFixed(1)} KB
                   </span>
                 </div>
-                <span className="text-blue-600 text-sm font-medium">Download ↓</span>
+                <span className="text-blue-600 text-sm font-medium">Download</span>
               </a>
             ))}
           </div>
