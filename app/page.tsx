@@ -4,47 +4,51 @@ import { supabase } from "../lib/supabase";
 
 export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [shareLink, setShareLink] = useState<string | null>(null);
+  const [shareLinks, setShareLinks] = useState<string[]>([]);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
-    if (e.target.files?.[0]) setFile(e.target.files[0]);
+    if (e.target.files) setFiles(Array.from(e.target.files));
   }
 
   function handleDrop(e: React.DragEvent) {
     e.preventDefault();
-    if (e.dataTransfer.files?.[0]) setFile(e.dataTransfer.files[0]);
+    if (e.dataTransfer.files) setFiles(Array.from(e.dataTransfer.files));
   }
 
   async function handleUpload() {
-    if (!file) return;
+    if (!files.length) return;
     setUploading(true);
+    const links: string[] = [];
 
-    const fileName = `${Date.now()}-${file.name}`;
-    const { error } = await supabase.storage
-      .from("files")
-      .upload(fileName, file);
+    for (const file of files) {
+      const fileName = `${Date.now()}-${file.name}`;
+      const { error } = await supabase.storage
+        .from("files")
+        .upload(fileName, file);
 
-    if (error) {
-      alert("Upload failed: " + error.message);
-      setUploading(false);
-      return;
+      if (error) {
+        alert("Upload failed: " + error.message);
+        continue;
+      }
+
+      const { data: urlData } = supabase.storage
+        .from("files")
+        .getPublicUrl(fileName);
+
+      const publicUrl = urlData.publicUrl;
+
+      await supabase.from("files").insert({
+        filename: file.name,
+        filesize: file.size,
+        url: publicUrl,
+      });
+
+      links.push(publicUrl);
     }
 
-    const { data: urlData } = supabase.storage
-      .from("files")
-      .getPublicUrl(fileName);
-
-    const publicUrl = urlData.publicUrl;
-
-    await supabase.from("files").insert({
-      filename: file.name,
-      filesize: file.size,
-      url: publicUrl,
-    });
-
-    setShareLink(publicUrl);
+    setShareLinks(links);
     setUploading(false);
   }
 
@@ -63,40 +67,50 @@ export default function Home() {
           className="w-full border-2 border-dashed border-gray-300 rounded-xl p-10 flex flex-col items-center justify-center gap-3 cursor-pointer hover:border-blue-400 hover:bg-blue-50 transition-all"
         >
           <p className="text-4xl">📁</p>
-          {file ? (
-            <p className="text-blue-600 font-medium">{file.name}</p>
+          {files.length > 0 ? (
+            <div className="flex flex-col items-center gap-1">
+              <p className="text-blue-600 font-medium">{files.length} file{files.length > 1 ? "s" : ""} selected</p>
+              {files.map((f, i) => (
+                <p key={i} className="text-gray-400 text-sm">{f.name}</p>
+              ))}
+            </div>
           ) : (
             <>
               <p className="text-gray-500 font-medium">Click or drag files here to upload</p>
-              <p className="text-gray-400 text-sm">Max 100MB per file</p>
+              <p className="text-gray-400 text-sm">Select multiple files at once • Max 100MB per file</p>
             </>
           )}
           <input
             ref={inputRef}
             type="file"
             className="hidden"
+            multiple
             onChange={handleFileChange}
           />
         </div>
 
         <button
           onClick={handleUpload}
-          disabled={!file || uploading}
+          disabled={!files.length || uploading}
           className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-xl transition-all"
         >
-          {uploading ? "Uploading..." : file ? `Upload "${file.name}"` : "Select a file first"}
+          {uploading ? "Uploading..." : files.length > 0 ? `Upload ${files.length} file${files.length > 1 ? "s" : ""}` : "Select files first"}
         </button>
 
-        {shareLink && (
-          <div className="w-full bg-green-50 border border-green-200 rounded-xl p-4 flex flex-col gap-2">
-            <p className="text-green-700 font-medium">✅ File uploaded!</p>
-            <p className="text-sm text-gray-500 break-all">{shareLink}</p>
-            <button
-              onClick={() => navigator.clipboard.writeText(shareLink)}
-              className="text-sm bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-all"
-            >
-              Copy Link
-            </button>
+        {shareLinks.length > 0 && (
+          <div className="w-full bg-green-50 border border-green-200 rounded-xl p-4 flex flex-col gap-3">
+            <p className="text-green-700 font-medium">✅ {shareLinks.length} file{shareLinks.length > 1 ? "s" : ""} uploaded!</p>
+            {shareLinks.map((link, i) => (
+              <div key={i} className="flex flex-col gap-1">
+                <p className="text-sm text-gray-500 break-all">{link}</p>
+                <button
+                  onClick={() => navigator.clipboard.writeText(link)}
+                  className="text-sm bg-green-600 hover:bg-green-700 text-white py-1 rounded-lg transition-all"
+                >
+                  Copy Link
+                </button>
+              </div>
+            ))}
           </div>
         )}
       </div>
