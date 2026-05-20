@@ -19,7 +19,7 @@ export default function Home() {
     const collectionId = crypto.randomUUID();
 
     for (const file of files) {
-      const { data, error } = await supabase.storage
+      const { error } = await supabase.storage
         .from("files")
         .upload(`${collectionId}/${file.name}`, file);
 
