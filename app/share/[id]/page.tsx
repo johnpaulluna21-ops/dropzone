@@ -47,7 +47,7 @@ export default function SharePage({ params }: { params: { id: string } }) {
           <>
             <div className="flex flex-col gap-3">
               {files.map((file) => (
-                
+                <a
                   key={file.id}
                   href={file.url}
                   target="_blank"
