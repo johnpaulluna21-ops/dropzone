@@ -22,7 +22,7 @@ export default function Home() {
     setUploading(true);
 
     const fileName = `${Date.now()}-${file.name}`;
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from("files")
       .upload(fileName, file);
 
