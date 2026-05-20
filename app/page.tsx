@@ -15,7 +15,6 @@ export default function Home() {
   const handleUpload = async () => {
     if (!files.length) return;
     setUploading(true);
-
     const collectionId = crypto.randomUUID();
 
     for (const file of files) {
@@ -46,7 +45,6 @@ export default function Home() {
       <div className="max-w-xl w-full bg-white rounded-2xl shadow-lg p-10 flex flex-col gap-6">
         <h1 className="text-3xl font-bold text-gray-900">DropZone</h1>
         <p className="text-gray-500">Drop your files and share them instantly.</p>
-
         <div
           onDrop={handleDrop}
           onDragOver={(e) => e.preventDefault()}
@@ -56,14 +54,12 @@ export default function Home() {
             ? files.map((f) => <p key={f.name}>{f.name}</p>)
             : "Drag & drop files here"}
         </div>
-
         <input
           type="file"
           multiple
           onChange={(e) => setFiles(Array.from(e.target.files || []))}
           className="text-sm text-gray-500"
         />
-
         <button
           onClick={handleUpload}
           disabled={uploading}
@@ -71,14 +67,12 @@ export default function Home() {
         >
           {uploading ? "Uploading..." : "Upload & Get Link"}
         </button>
-
         {shareLink && (
           <div className="bg-gray-50 border border-gray-200 rounded-xl p-4">
             <p className="text-sm text-gray-500 mb-1">Your share link:</p>
             <a href={shareLink} className="text-blue-600 font-medium break-all">{shareLink}</a>
           </div>
         )}
-
         <div className="border-t pt-4">
           <p className="text-gray-400 text-sm text-center">
             Powered by <span className="font-semibold text-blue-600">DropZone</span>
