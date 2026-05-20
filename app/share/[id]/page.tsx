@@ -34,9 +34,9 @@ export default function SharePage({ params }: { params: { id: string } }) {
         ) : files.length > 0 ? (
           <div className="flex flex-col gap-3">
             {files.map((file) => (
-              
-                key={file.id}
-                href={file.url}
+  
+    key={file.id}
+    href={file.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 hover:bg-blue-50 hover:border-blue-300 transition-all"
