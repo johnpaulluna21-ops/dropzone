@@ -20,7 +20,7 @@ export default function Home() {
     for (const file of files) {
       const { error } = await supabase.storage
         .from("files")
-        .upload(`${collectionId}/${file.name}`, file);
+       .upload(`${collectionId}/${file.name}`, file, { upsert: true });
 
       if (error) { console.error(error); continue; }
 
