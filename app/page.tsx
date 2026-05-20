@@ -6,7 +6,7 @@ export default function Home() {
   const inputRef = useRef<HTMLInputElement>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [uploading, setUploading] = useState(false);
-  const [shareLinks, setShareLinks] = useState<string[]>([]);
+  const [collectionLink, setCollectionLink] = useState<string | null>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     if (e.target.files) setFiles(Array.from(e.target.files));
@@ -20,7 +20,18 @@ export default function Home() {
   async function handleUpload() {
     if (!files.length) return;
     setUploading(true);
-    const links: string[] = [];
+
+    const { data: collection, error: collectionError } = await supabase
+      .from("collections")
+      .insert({})
+      .select()
+      .single();
+
+    if (collectionError) {
+      alert("Failed to create collection: " + collectionError.message);
+      setUploading(false);
+      return;
+    }
 
     for (const file of files) {
       const fileName = `${Date.now()}-${file.name}`;
@@ -37,18 +48,15 @@ export default function Home() {
         .from("files")
         .getPublicUrl(fileName);
 
-      const publicUrl = urlData.publicUrl;
-
       await supabase.from("files").insert({
         filename: file.name,
         filesize: file.size,
-        url: publicUrl,
+        url: urlData.publicUrl,
+        collection_id: collection.id,
       });
-
-      links.push(publicUrl);
     }
 
-    setShareLinks(links);
+    setCollectionLink(`${window.location.origin}/share/${collection.id}`);
     setUploading(false);
   }
 
@@ -97,20 +105,16 @@ export default function Home() {
           {uploading ? "Uploading..." : files.length > 0 ? `Upload ${files.length} file${files.length > 1 ? "s" : ""}` : "Select files first"}
         </button>
 
-        {shareLinks.length > 0 && (
+        {collectionLink && (
           <div className="w-full bg-green-50 border border-green-200 rounded-xl p-4 flex flex-col gap-3">
-            <p className="text-green-700 font-medium">✅ {shareLinks.length} file{shareLinks.length > 1 ? "s" : ""} uploaded!</p>
-            {shareLinks.map((link, i) => (
-              <div key={i} className="flex flex-col gap-1">
-                <p className="text-sm text-gray-500 break-all">{link}</p>
-                <button
-                  onClick={() => navigator.clipboard.writeText(link)}
-                  className="text-sm bg-green-600 hover:bg-green-700 text-white py-1 rounded-lg transition-all"
-                >
-                  Copy Link
-                </button>
-              </div>
-            ))}
+            <p className="text-green-700 font-medium">✅ {files.length} file{files.length > 1 ? "s" : ""} uploaded!</p>
+            <p className="text-sm text-gray-500 break-all">{collectionLink}</p>
+            <button
+              onClick={() => navigator.clipboard.writeText(collectionLink)}
+              className="text-sm bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg transition-all"
+            >
+              Copy Share Link
+            </button>
           </div>
         )}
       </div>
