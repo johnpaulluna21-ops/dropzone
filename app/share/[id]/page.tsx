@@ -80,4 +80,4 @@ export default function SharePage({ params }: { params: { id: string } }) {
       </div>
     </main>
   );
-}
+}// updated 
