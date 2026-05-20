@@ -1,1 +1,3 @@
-"export default function SharePage() { return <div>Loading...</div>; }" 
+export default function Sharepage() {
+    return <div>Loading...</div>;
+}
