@@ -179,8 +179,8 @@ export default function AdminPage() {
                           {extracting === upload.id
                             ? "Extracting..."
                             : upload.extracted_data
-                            ? "Re-extract"
-                            : "Extract"}
+                            ? "Re-run"
+: "Extract"}
                         </button>
                       </div>
                     </td>
