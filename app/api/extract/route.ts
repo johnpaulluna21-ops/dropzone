@@ -15,11 +15,15 @@ const supabase = createClient(
 );
 
 function cleanJson(text: string): string {
-  return text
-    .replace(/^[\s\S]*?```json\s*/i, "")
-    .replace(/^[\s\S]*?```\s*/i, "")
-    .replace(/```[\s\S]*$/i, "")
-    .trim();
+  // Try to extract JSON from code fences first
+  const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fenceMatch) return fenceMatch[1].trim();
+  
+  // Try to find raw JSON object or array
+  const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
+  if (jsonMatch) return jsonMatch[1].trim();
+  
+  return text.trim();
 }
 
 export async function POST(request: NextRequest) {
