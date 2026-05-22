@@ -61,7 +61,7 @@ export default function Home() {
           <div className="text-center py-8">
             <p className="text-3xl mb-3">✅</p>
             <p className="font-medium text-gray-900">All documents received</p>
-            <p className="text-gray-500 text-sm mt-1">We'll process them and get back to you</p>
+            <p className="text-gray-500 text-sm mt-1">We&apos;ll process them and get back to you</p>
             <button onClick={() => { setSuccess(false); setProgress([]); }} className="mt-4 text-sm text-blue-600 hover:underline">
               Submit more
             </button>
