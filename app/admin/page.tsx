@@ -45,6 +45,22 @@ export default function AdminPage() {
     }
   };
 
+  const parseExtractedData = (data: any) => {
+    try {
+      let parsed = data;
+      if (typeof parsed === "string") parsed = JSON.parse(parsed);
+      if (typeof parsed === "string") parsed = JSON.parse(parsed);
+      return parsed;
+    } catch {
+      return data;
+    }
+  };
+
+  const hasParseError = (data: any) => {
+    const parsed = parseExtractedData(data);
+    return parsed?.parse_error === true;
+  };
+
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
@@ -80,13 +96,33 @@ export default function AdminPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <button
-                        onClick={() => upload.extracted_data ? setSelected(upload) : handleExtract(upload)}
-                        disabled={extracting === upload.id}
-                        className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700 disabled:opacity-40"
-                      >
-                        {extracting === upload.id ? "Extracting..." : upload.extracted_data ? "View" : "Extract"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        {upload.extracted_data && (
+                          <button
+                            onClick={() => setSelected(upload)}
+                            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
+                          >
+                            View
+                          </button>
+                        )}
+                        <button
+                          onClick={() => handleExtract(upload)}
+                          disabled={extracting === upload.id}
+                          className={`text-xs px-3 py-1.5 rounded-lg disabled:opacity-40 ${
+                            upload.extracted_data
+                              ? hasParseError(upload.extracted_data)
+                                ? "bg-red-500 text-white hover:bg-red-600"
+                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+                              : "bg-blue-600 text-white hover:bg-blue-700"
+                          }`}
+                        >
+                          {extracting === upload.id
+                            ? "Extracting..."
+                            : upload.extracted_data
+                            ? "Re-extract"
+                            : "Extract"}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -99,13 +135,7 @@ export default function AdminPage() {
               <>
                 <h2 className="font-medium text-gray-900 mb-4">{selected.file_name}</h2>
                 <pre className="text-xs bg-gray-50 rounded-xl p-4 overflow-auto max-h-96 text-gray-700">
- {JSON.stringify(
-  typeof selected.extracted_data === "string"
-    ? JSON.parse(selected.extracted_data)
-    : selected.extracted_data,
-  null,
-  2
-)}
+                  {JSON.stringify(parseExtractedData(selected.extracted_data), null, 2)}
                 </pre>
               </>
             ) : (
