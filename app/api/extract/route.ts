@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
@@ -12,6 +13,14 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+
+function cleanJson(text: string): string {
+  return text
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -98,24 +107,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
     }
 
-   const extractedText = message.content[0].type === "text" ? message.content[0].text : "";
+    const extractedText = message.content[0].type === "text" ? message.content[0].text : "";
 
-// Strip markdown fences Claude sometimes wraps around JSON
-function cleanJson(text: string): string {
-  return text
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```\s*$/i, "")
-    .trim();
-}
-
-let extractedData;
-try {
-  extractedData = JSON.parse(cleanJson(extractedText));
-} catch {
-  // If still can't parse, save raw so we don't lose the extraction
-  extractedData = { raw: extractedText, parse_error: true };
-}
+    let extractedData;
+    try {
+      extractedData = JSON.parse(cleanJson(extractedText));
+    } catch {
+      extractedData = { raw: extractedText, parse_error: true };
+    }
 
     await supabase
       .from("uploads")
