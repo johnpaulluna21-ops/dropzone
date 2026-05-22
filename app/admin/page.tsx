@@ -12,6 +12,8 @@ export default function AdminPage() {
   const [uploads, setUploads] = useState<any[]>([]);
   const [extracting, setExtracting] = useState<string | null>(null);
   const [selected, setSelected] = useState<any | null>(null);
+  const [checked, setChecked] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     fetchUploads();
@@ -45,6 +47,37 @@ export default function AdminPage() {
     }
   };
 
+  const handleDelete = async () => {
+    if (checked.length === 0) return;
+    if (!confirm(`Delete ${checked.length} file(s)? This cannot be undone.`)) return;
+    setDeleting(true);
+    try {
+      const res = await fetch("/api/delete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: checked }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setChecked([]);
+        if (selected && checked.includes(selected.id)) setSelected(null);
+        fetchUploads();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const toggleCheck = (id: string) => {
+    setChecked(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
+  };
+
+  const toggleAll = () => {
+    setChecked(checked.length === uploads.length ? [] : uploads.map(u => u.id));
+  };
+
   const parseExtractedData = (data: any) => {
     try {
       let parsed = data;
@@ -64,9 +97,20 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
-          <p className="text-gray-500 mt-1">All submitted documents</p>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
+            <p className="text-gray-500 mt-1">All submitted documents</p>
+          </div>
+          {checked.length > 0 && (
+            <button
+              onClick={handleDelete}
+              disabled={deleting}
+              className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-40"
+            >
+              {deleting ? "Deleting..." : `Delete ${checked.length} selected`}
+            </button>
+          )}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -74,14 +118,30 @@ export default function AdminPage() {
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
+                  <th className="px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={checked.length === uploads.length && uploads.length > 0}
+                      onChange={toggleAll}
+                      className="rounded"
+                    />
+                  </th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">File</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Action</th>
+                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase w-32">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {uploads.map((upload) => (
-                  <tr key={upload.id} className="hover:bg-gray-50">
+                  <tr key={upload.id} className={`hover:bg-gray-50 ${checked.includes(upload.id) ? "bg-red-50" : ""}`}>
+                    <td className="px-4 py-3">
+                      <input
+                        type="checkbox"
+                        checked={checked.includes(upload.id)}
+                        onChange={() => toggleCheck(upload.id)}
+                        className="rounded"
+                      />
+                    </td>
                     <td className="px-4 py-3">
                       <p className="text-sm font-medium text-gray-900 truncate max-w-xs">{upload.file_name}</p>
                       <p className="text-xs text-gray-400">{(upload.file_size / 1024).toFixed(1)} KB</p>
@@ -96,7 +156,7 @@ export default function AdminPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                    <div className="flex flex-col gap-1">
+                      <div className="flex flex-col gap-1">
                         {upload.extracted_data && (
                           <button
                             onClick={() => setSelected(upload)}
