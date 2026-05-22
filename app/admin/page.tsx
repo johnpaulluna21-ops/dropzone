@@ -170,7 +170,7 @@ export default function AdminPage() {
                   disabled={bulkExtracting}
                   className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40"
                 >
-                  {bulkExtracting ? "Extracting..." : `Extract ${checked.length} selected`}
+                  {bulkExtracting ? "Extracting..." : `Extract ${uploads.filter(u => checked.includes(u.id) && (!u.extracted_data || hasParseError(u.extracted_data))).length} pending`}
                 </button>
                 <button
                   onClick={handleExportSelected}
