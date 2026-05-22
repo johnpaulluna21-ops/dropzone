@@ -18,8 +18,19 @@ export default function AdminPage() {
   const [bulkExtracting, setBulkExtracting] = useState(false);
 
   useEffect(() => {
-    fetchUploads();
-  }, []);
+  fetchUploads();
+
+  const channel = supabase
+    .channel("uploads-realtime")
+    .on("postgres_changes", { event: "*", schema: "public", table: "uploads" }, () => {
+      fetchUploads();
+    })
+    .subscribe();
+
+  return () => {
+    supabase.removeChannel(channel);
+  };
+}, []);
 
   const fetchUploads = async () => {
     const { data } = await supabase
