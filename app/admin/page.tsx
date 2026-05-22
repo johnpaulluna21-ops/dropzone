@@ -15,6 +15,7 @@ export default function AdminPage() {
   const [selected, setSelected] = useState<any | null>(null);
   const [checked, setChecked] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
+  const [bulkExtracting, setBulkExtracting] = useState(false);
 
   useEffect(() => {
     fetchUploads();
@@ -46,6 +47,21 @@ export default function AdminPage() {
     } finally {
       setExtracting(null);
     }
+  };
+
+  const handleExtractSelected = async () => {
+    const toExtract = uploads.filter(
+      (u) => checked.includes(u.id) &&
+      (!u.extracted_data || hasParseError(u.extracted_data))
+    );
+    if (toExtract.length === 0) return alert("All selected files are already extracted cleanly.");
+    if (!confirm(`Extract ${toExtract.length} file(s)?`)) return;
+    setBulkExtracting(true);
+    for (const upload of toExtract) {
+      await handleExtract(upload);
+    }
+    setBulkExtracting(false);
+    setChecked([]);
   };
 
   const handleDelete = async () => {
@@ -140,7 +156,7 @@ export default function AdminPage() {
             <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
             <p className="text-gray-500 mt-1">All submitted documents</p>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleExportAll}
               className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-700"
@@ -149,6 +165,13 @@ export default function AdminPage() {
             </button>
             {checked.length > 0 && (
               <>
+                <button
+                  onClick={handleExtractSelected}
+                  disabled={bulkExtracting}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40"
+                >
+                  {bulkExtracting ? "Extracting..." : `Extract ${checked.length} selected`}
+                </button>
                 <button
                   onClick={handleExportSelected}
                   className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600"
@@ -187,7 +210,7 @@ export default function AdminPage() {
               </thead>
               <tbody className="divide-y divide-gray-50">
                 {uploads.map((upload) => (
-                  <tr key={upload.id} className={`hover:bg-gray-50 ${checked.includes(upload.id) ? "bg-red-50" : ""}`}>
+                  <tr key={upload.id} className={`hover:bg-gray-50 ${checked.includes(upload.id) ? "bg-blue-50" : ""}`}>
                     <td className="px-4 py-3">
                       <input
                         type="checkbox"
