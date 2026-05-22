@@ -76,7 +76,7 @@ export default function AdminPage() {
                 <tr>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">File</th>
                   <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Action</th>
+                 <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Action</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
@@ -96,7 +96,7 @@ export default function AdminPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
+                    <div className="flex flex-col gap-1">
                         {upload.extracted_data && (
                           <button
                             onClick={() => setSelected(upload)}
