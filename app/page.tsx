@@ -98,7 +98,7 @@ export default function Home() {
                 <i className="ti ti-check" style={{ fontSize: 26, color: "#14b8a6" }} />
               </div>
               <p style={{ fontSize: 18, fontWeight: 600, color: "#fff", marginBottom: 8, letterSpacing: "-0.3px" }}>Documents received</p>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: "2rem", lineHeight: 1.6 }}>Your files are being processed. We'll extract and organize the data automatically.</p>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: "2rem", lineHeight: 1.6 }}>Your files are being processed. we&apos;ll extract and organize the data automatically.</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: "2rem", textAlign: "left" }}>
                 {[
@@ -126,7 +126,7 @@ export default function Home() {
             <>
               <div style={{ marginBottom: "2rem" }}>
                 <h1 style={{ fontSize: 20, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px", marginBottom: 6 }}>Submit your documents</h1>
-                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>Upload files and we'll extract, organize, and deliver the data — automatically.</p>
+                <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>Upload files and we&apos;ll extract, organize, and deliver the data — automatically.</p>
               </div>
 
               {/* Dropzone */}
