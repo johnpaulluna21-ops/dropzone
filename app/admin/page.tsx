@@ -18,19 +18,15 @@ export default function AdminPage() {
   const [bulkExtracting, setBulkExtracting] = useState(false);
 
   useEffect(() => {
-  fetchUploads();
-
-  const channel = supabase
-    .channel("uploads-realtime")
-    .on("postgres_changes", { event: "*", schema: "public", table: "uploads" }, () => {
-      fetchUploads();
-    })
-    .subscribe();
-
-  return () => {
-    supabase.removeChannel(channel);
-  };
-}, []);
+    fetchUploads();
+    const channel = supabase
+      .channel("uploads-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "uploads" }, () => {
+        fetchUploads();
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const fetchUploads = async () => {
     const { data } = await supabase
@@ -62,15 +58,12 @@ export default function AdminPage() {
 
   const handleExtractSelected = async () => {
     const toExtract = uploads.filter(
-      (u) => checked.includes(u.id) &&
-      (!u.extracted_data || hasParseError(u.extracted_data))
+      (u) => checked.includes(u.id) && (!u.extracted_data || hasParseError(u.extracted_data))
     );
     if (toExtract.length === 0) return alert("All selected files are already extracted cleanly.");
     if (!confirm(`Extract ${toExtract.length} file(s)?`)) return;
     setBulkExtracting(true);
-    for (const upload of toExtract) {
-      await handleExtract(upload);
-    }
+    for (const upload of toExtract) { await handleExtract(upload); }
     setBulkExtracting(false);
     setChecked([]);
   };
@@ -102,19 +95,11 @@ export default function AdminPage() {
     const exportData = rows.map((u) => {
       const data = parseExtractedData(u.extracted_data) || {};
       return {
-        "File Name": u.file_name,
-        "Status": u.status,
-        "Document Type": data.document_type || "",
-        "Date": data.date || "",
-        "Amount": data.amount || "",
-        "Name": data.name || "",
-        "Address": data.address || "",
-        "Uploaded At": new Date(u.created_at).toLocaleString(),
-        ...Object.fromEntries(
-          Object.entries(data)
-            .filter(([k]) => !["document_type","date","amount","name","address"].includes(k))
-            .map(([k, v]) => [k, typeof v === "object" ? JSON.stringify(v) : v])
-        ),
+        "File Name": u.file_name, "Status": u.status,
+        "Document Type": data.document_type || "", "Date": data.date || "",
+        "Amount": data.amount || "", "Name": data.name || "",
+        "Address": data.address || "", "Uploaded At": new Date(u.created_at).toLocaleString(),
+        ...Object.fromEntries(Object.entries(data).filter(([k]) => !["document_type","date","amount","name","address"].includes(k)).map(([k, v]) => [k, typeof v === "object" ? JSON.stringify(v) : v])),
       };
     });
     const ws = XLSX.utils.json_to_sheet(exportData);
@@ -149,9 +134,7 @@ export default function AdminPage() {
       if (typeof parsed === "string") parsed = JSON.parse(parsed);
       if (typeof parsed === "string") parsed = JSON.parse(parsed);
       return parsed;
-    } catch {
-      return data;
-    }
+    } catch { return data; }
   };
 
   const hasParseError = (data: any) => {
@@ -159,141 +142,155 @@ export default function AdminPage() {
     return parsed?.parse_error === true;
   };
 
+  const pendingCount = uploads.filter(u => checked.includes(u.id) && (!u.extracted_data || hasParseError(u.extracted_data))).length;
+
   return (
-    <main className="min-h-screen bg-gray-50 p-8">
-      <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex items-center justify-between flex-wrap gap-3">
-          <div>
-            <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
-            <p className="text-gray-500 mt-1">All submitted documents</p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <button
-              onClick={handleExportAll}
-              className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-700"
-            >
-              Export All
-            </button>
-            {checked.length > 0 && (
-              <>
-                <button
-                  onClick={handleExtractSelected}
-                  disabled={bulkExtracting}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-blue-700 disabled:opacity-40"
-                >
-                  {bulkExtracting ? "Extracting..." : `Extract ${uploads.filter(u => checked.includes(u.id) && (!u.extracted_data || hasParseError(u.extracted_data))).length} pending`}
-                </button>
-                <button
-                  onClick={handleExportSelected}
-                  className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600"
-                >
-                  Export {checked.length} selected
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-40"
-                >
-                  {deleting ? "Deleting..." : `Delete ${checked.length} selected`}
-                </button>
-              </>
-            )}
-          </div>
-        </div>
+    <>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #0f0f0f; }
+        ::-webkit-scrollbar { width: 4px; height: 4px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        input[type="checkbox"] { accent-color: #6366f1; width: 14px; height: 14px; cursor: pointer; }
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+      `}</style>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-            <table className="w-full">
-              <thead className="bg-gray-50 border-b border-gray-100">
-                <tr>
-                  <th className="px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={checked.length === uploads.length && uploads.length > 0}
-                      onChange={toggleAll}
-                      className="rounded"
-                    />
-                  </th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">File</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                  <th className="text-left px-4 py-3 text-xs font-medium text-gray-500 uppercase w-32">Action</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {uploads.map((upload) => (
-                  <tr key={upload.id} className={`hover:bg-gray-50 ${checked.includes(upload.id) ? "bg-blue-50" : ""}`}>
-                    <td className="px-4 py-3">
-                      <input
-                        type="checkbox"
-                        checked={checked.includes(upload.id)}
-                        onChange={() => toggleCheck(upload.id)}
-                        className="rounded"
-                      />
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="text-sm font-medium text-gray-900 truncate max-w-xs">{upload.file_name}</p>
-                      <p className="text-xs text-gray-400">{(upload.file_size / 1024).toFixed(1)} KB</p>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        upload.status === "extracted"
-                          ? "bg-green-100 text-green-800"
-                          : "bg-yellow-100 text-yellow-800"
-                      }`}>
-                        {upload.status}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex flex-col gap-1">
-                        {upload.extracted_data && (
-                          <button
-                            onClick={() => setSelected(upload)}
-                            className="text-xs bg-blue-600 text-white px-3 py-1.5 rounded-lg hover:bg-blue-700"
-                          >
-                            View
-                          </button>
-                        )}
-                        <button
-                          onClick={() => handleExtract(upload)}
-                          disabled={extracting === upload.id}
-                          className={`text-xs px-3 py-1.5 rounded-lg disabled:opacity-40 ${
-                            upload.extracted_data
-                              ? hasParseError(upload.extracted_data)
-                                ? "bg-red-500 text-white hover:bg-red-600"
-                                : "bg-gray-200 text-gray-700 hover:bg-gray-300"
-                              : "bg-blue-600 text-white hover:bg-blue-700"
-                          }`}
-                        >
-                          {extracting === upload.id
-                            ? "Extracting..."
-                            : upload.extracted_data
-                            ? "Re-run"
-                            : "Extract"}
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+      <main style={{
+        minHeight: "100vh",
+        background: "#0f0f0f",
+        backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%), radial-gradient(circle at bottom right, rgba(20,184,166,0.05) 0%, transparent 40%)",
+        padding: "2rem 1.5rem",
+        fontFamily: "'Inter', sans-serif",
+      }}>
+        <div style={{ maxWidth: 1400, margin: "0 auto" }}>
 
-          <div className="bg-white rounded-2xl border border-gray-100 p-6">
-            {selected ? (
-              <>
-                <h2 className="font-medium text-gray-900 mb-4">{selected.file_name}</h2>
-                <pre className="text-xs bg-gray-50 rounded-xl p-4 overflow-auto max-h-96 text-gray-700">
-                  {JSON.stringify(parseExtractedData(selected.extracted_data), null, 2)}
-                </pre>
-              </>
-            ) : (
-              <div className="flex items-center justify-center h-full text-gray-400 text-sm">
-                Click Extract on a document to see results
+          {/* Header */}
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: "2rem", animation: "fadeUp 0.4s ease both" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 38, height: 38, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <i className="ti ti-layout-dashboard" style={{ color: "#fff", fontSize: 18 }} />
               </div>
-            )}
+              <div>
+                <h1 style={{ fontSize: 18, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>Admin Dashboard</h1>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{uploads.length} documents · {uploads.filter(u => u.status === "extracted").length} extracted</p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <button onClick={handleExportAll} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                <i className="ti ti-table-export" style={{ fontSize: 14 }} /> Export All
+              </button>
+              {checked.length > 0 && (
+                <>
+                  <button onClick={handleExtractSelected} disabled={bulkExtracting} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: bulkExtracting ? 0.5 : 1 }}>
+                    <i className="ti ti-sparkles" style={{ fontSize: 14 }} />
+                    {bulkExtracting ? "Extracting..." : `Extract ${pendingCount} pending`}
+                  </button>
+                  <button onClick={handleExportSelected} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.10)", border: "0.5px solid rgba(16,185,129,0.2)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                    <i className="ti ti-download" style={{ fontSize: 14 }} /> Export {checked.length}
+                  </button>
+                  <button onClick={handleDelete} disabled={deleting} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(239,68,68,0.12)", border: "0.5px solid rgba(239,68,68,0.25)", borderRadius: 10, color: "#fca5a5", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: deleting ? 0.5 : 1 }}>
+                    <i className="ti ti-trash" style={{ fontSize: 14 }} />
+                    {deleting ? "Deleting..." : `Delete ${checked.length}`}
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Main Grid */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, animation: "fadeUp 0.4s 0.1s ease both" }}>
+
+            {/* Table */}
+            <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ background: "rgba(255,255,255,0.03)", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}>
+                    <th style={{ padding: "12px 16px", width: 40 }}>
+                      <input type="checkbox" checked={checked.length === uploads.length && uploads.length > 0} onChange={toggleAll} />
+                    </th>
+                    <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.3)", letterSpacing: "0.5px", textTransform: "uppercase" }}>File</th>
+                    <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.3)", letterSpacing: "0.5px", textTransform: "uppercase" }}>Status</th>
+                    <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.3)", letterSpacing: "0.5px", textTransform: "uppercase", width: 120 }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {uploads.map((upload, idx) => (
+                    <tr key={upload.id} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.05)", background: checked.includes(upload.id) ? "rgba(99,102,241,0.06)" : idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)", transition: "background 0.15s" }}>
+                      <td style={{ padding: "12px 16px" }}>
+                        <input type="checkbox" checked={checked.includes(upload.id)} onChange={() => toggleCheck(upload.id)} />
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }}>{upload.file_name}</p>
+                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{(upload.file_size / 1024).toFixed(1)} KB</p>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <span style={{
+                          padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
+                          background: upload.status === "extracted" ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
+                          color: upload.status === "extracted" ? "#6ee7b7" : "#fcd34d",
+                          border: `0.5px solid ${upload.status === "extracted" ? "rgba(16,185,129,0.25)" : "rgba(245,158,11,0.25)"}`,
+                        }}>
+                          {upload.status}
+                        </span>
+                      </td>
+                      <td style={{ padding: "12px 16px" }}>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                          {upload.extracted_data && (
+                            <button onClick={() => setSelected(upload)} style={{ padding: "5px 12px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 8, color: "#a5b4fc", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                              View
+                            </button>
+                          )}
+                          <button onClick={() => handleExtract(upload)} disabled={extracting === upload.id} style={{
+                            padding: "5px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+                            opacity: extracting === upload.id ? 0.5 : 1,
+                            background: upload.extracted_data ? hasParseError(upload.extracted_data) ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.06)" : "rgba(99,102,241,0.2)",
+                            border: upload.extracted_data ? hasParseError(upload.extracted_data) ? "0.5px solid rgba(239,68,68,0.3)" : "0.5px solid rgba(255,255,255,0.1)" : "0.5px solid rgba(99,102,241,0.35)",
+                            color: upload.extracted_data ? hasParseError(upload.extracted_data) ? "#fca5a5" : "rgba(255,255,255,0.5)" : "#a5b4fc",
+                          }}>
+                            {extracting === upload.id ? "..." : upload.extracted_data ? "Re-run" : "Extract"}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Preview Panel */}
+            <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column" }}>
+              {selected ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem", paddingBottom: "1rem", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}>
+                    <div style={{ width: 32, height: 32, background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <i className="ti ti-file-text" style={{ fontSize: 16, color: "#a5b4fc" }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selected.file_name}</p>
+                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Extracted data</p>
+                    </div>
+                    <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 18 }}>×</button>
+                  </div>
+                  <pre style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "1rem", overflow: "auto", flex: 1, lineHeight: 1.7, fontFamily: "monospace" }}>
+                    {JSON.stringify(parseExtractedData(selected.extracted_data), null, 2)}
+                  </pre>
+                </>
+              ) : (
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                  <div style={{ width: 52, height: 52, background: "rgba(255,255,255,0.04)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <i className="ti ti-file-search" style={{ fontSize: 24, color: "rgba(255,255,255,0.2)" }} />
+                  </div>
+                  <p style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textAlign: "center" }}>Select a document to preview extracted data</p>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-      </div>
-    </main>
+      </main>
+    </>
   );
 }
