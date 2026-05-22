@@ -99,7 +99,13 @@ export default function AdminPage() {
               <>
                 <h2 className="font-medium text-gray-900 mb-4">{selected.file_name}</h2>
                 <pre className="text-xs bg-gray-50 rounded-xl p-4 overflow-auto max-h-96 text-gray-700">
-                  {JSON.stringify(selected.extracted_data, null, 2)}
+                  {JSON.stringify(
+  typeof selected.extracted_data === "string"
+    ? JSON.parse(selected.extracted_data)
+    : selected.extracted_data,
+  null,
+  2
+)}
                 </pre>
               </>
             ) : (
