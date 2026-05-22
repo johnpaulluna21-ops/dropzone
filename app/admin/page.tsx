@@ -2,6 +2,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { createClient } from "@supabase/supabase-js";
+import * as XLSX from "xlsx";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -70,6 +71,43 @@ export default function AdminPage() {
     }
   };
 
+  const exportToExcel = (rows: any[], filename: string) => {
+    const exportData = rows.map((u) => {
+      const data = parseExtractedData(u.extracted_data) || {};
+      return {
+        "File Name": u.file_name,
+        "Status": u.status,
+        "Document Type": data.document_type || "",
+        "Date": data.date || "",
+        "Amount": data.amount || "",
+        "Name": data.name || "",
+        "Address": data.address || "",
+        "Uploaded At": new Date(u.created_at).toLocaleString(),
+        ...Object.fromEntries(
+          Object.entries(data)
+            .filter(([k]) => !["document_type","date","amount","name","address"].includes(k))
+            .map(([k, v]) => [k, typeof v === "object" ? JSON.stringify(v) : v])
+        ),
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Documents");
+    XLSX.writeFile(wb, filename);
+  };
+
+  const handleExportSelected = () => {
+    const rows = uploads.filter((u) => checked.includes(u.id) && u.extracted_data);
+    if (rows.length === 0) return alert("No extracted files selected.");
+    exportToExcel(rows, `dropzone_selected_${Date.now()}.xlsx`);
+  };
+
+  const handleExportAll = () => {
+    const rows = uploads.filter((u) => u.extracted_data);
+    if (rows.length === 0) return alert("No extracted files to export.");
+    exportToExcel(rows, `dropzone_all_${Date.now()}.xlsx`);
+  };
+
   const toggleCheck = (id: string) => {
     setChecked(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
@@ -97,20 +135,36 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-gray-50 p-8">
       <div className="max-w-6xl mx-auto">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex items-center justify-between flex-wrap gap-3">
           <div>
             <h1 className="text-2xl font-semibold text-gray-900">Admin Dashboard</h1>
             <p className="text-gray-500 mt-1">All submitted documents</p>
           </div>
-          {checked.length > 0 && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-40"
+              onClick={handleExportAll}
+              className="bg-green-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-700"
             >
-              {deleting ? "Deleting..." : `Delete ${checked.length} selected`}
+              Export All
             </button>
-          )}
+            {checked.length > 0 && (
+              <>
+                <button
+                  onClick={handleExportSelected}
+                  className="bg-green-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-green-600"
+                >
+                  Export {checked.length} selected
+                </button>
+                <button
+                  onClick={handleDelete}
+                  disabled={deleting}
+                  className="bg-red-500 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-red-600 disabled:opacity-40"
+                >
+                  {deleting ? "Deleting..." : `Delete ${checked.length} selected`}
+                </button>
+              </>
+            )}
+          </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -180,7 +234,7 @@ export default function AdminPage() {
                             ? "Extracting..."
                             : upload.extracted_data
                             ? "Re-run"
-: "Extract"}
+                            : "Extract"}
                         </button>
                       </div>
                     </td>
