@@ -16,9 +16,9 @@ const supabase = createClient(
 
 function cleanJson(text: string): string {
   return text
-    .replace(/^```json\s*/i, "")
-    .replace(/^```\s*/i, "")
-    .replace(/```\s*$/i, "")
+    .replace(/^[\s\S]*?```json\s*/i, "")
+    .replace(/^[\s\S]*?```\s*/i, "")
+    .replace(/```[\s\S]*$/i, "")
     .trim();
 }
 
