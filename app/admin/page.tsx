@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 
@@ -21,6 +21,10 @@ export default function AdminPage() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
+  const [dragStart, setDragStart] = useState<number | null>(null);
+  const [dragEnd, setDragEnd] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const lastCheckedRef = useRef<string | null>(null);
 
   useEffect(() => {
     fetchUploads();
@@ -135,9 +139,59 @@ export default function AdminPage() {
     exportToExcel(rows, `dropzone_all_${Date.now()}.xlsx`);
   };
 
-  const toggleCheck = (id: string) => {
+  const toggleCheck = (id: string, idx: number, e: React.MouseEvent) => {
+    if (e.shiftKey && lastCheckedRef.current) {
+      const lastIdx = paginatedUploads.findIndex(u => u.id === lastCheckedRef.current);
+      if (lastIdx !== -1) {
+        const start = Math.min(lastIdx, idx);
+        const end = Math.max(lastIdx, idx);
+        const rangeIds = paginatedUploads.slice(start, end + 1).map(u => u.id);
+        setChecked(prev => {
+          const combined = new Set([...prev, ...rangeIds]);
+          return Array.from(combined);
+        });
+        return;
+      }
+    }
+    lastCheckedRef.current = id;
     setChecked(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]);
   };
+
+  const handleRowClick = (upload: any, idx: number, e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === "BUTTON" || target.tagName === "INPUT" || target.closest("button")) return;
+    toggleCheck(upload.id, idx, e);
+  };
+
+  const handleRowMouseDown = (idx: number) => {
+    setDragStart(idx);
+    setIsDragging(false);
+  };
+
+  const handleRowMouseEnter = (idx: number) => {
+    if (dragStart !== null) {
+      setIsDragging(true);
+      setDragEnd(idx);
+      const start = Math.min(dragStart, idx);
+      const end = Math.max(dragStart, idx);
+      const rangeIds = paginatedUploads.slice(start, end + 1).map(u => u.id);
+      setChecked(prev => {
+        const combined = new Set([...prev, ...rangeIds]);
+        return Array.from(combined);
+      });
+    }
+  };
+
+  const handleMouseUp = useCallback(() => {
+    setDragStart(null);
+    setDragEnd(null);
+    setIsDragging(false);
+  }, []);
+
+  useEffect(() => {
+    window.addEventListener("mouseup", handleMouseUp);
+    return () => window.removeEventListener("mouseup", handleMouseUp);
+  }, [handleMouseUp]);
 
   const toggleAll = () => {
     setChecked(checked.length === filteredUploads.length ? [] : filteredUploads.map(u => u.id));
@@ -157,7 +211,6 @@ export default function AdminPage() {
     return parsed?.parse_error === true;
   };
 
-  // Filter and search
   const filteredUploads = uploads.filter(u => {
     const matchSearch = u.file_name?.toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === "all" || u.status === statusFilter;
@@ -180,6 +233,8 @@ export default function AdminPage() {
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
         input[type="checkbox"] { accent-color: #6366f1; width: 14px; height: 14px; cursor: pointer; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        .row-selectable { cursor: pointer; user-select: none; }
+        .row-selectable:hover { background: rgba(99,102,241,0.04) !important; }
       `}</style>
 
       <main style={{
@@ -252,6 +307,13 @@ export default function AdminPage() {
             </select>
           </div>
 
+          {/* Hint */}
+          {checked.length === 0 && (
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginBottom: "0.75rem" }}>
+              💡 Click a row to select · Shift+click for range · Drag to select multiple
+            </p>
+          )}
+
           {/* Main Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, animation: "fadeUp 0.4s 0.1s ease both" }}>
 
@@ -276,9 +338,25 @@ export default function AdminPage() {
                       </td>
                     </tr>
                   ) : paginatedUploads.map((upload, idx) => (
-                    <tr key={upload.id} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.05)", background: checked.includes(upload.id) ? "rgba(99,102,241,0.06)" : idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)", transition: "background 0.15s" }}>
+                    <tr
+                      key={upload.id}
+                      className="row-selectable"
+                      onClick={(e) => handleRowClick(upload, idx, e)}
+                      onMouseDown={() => handleRowMouseDown(idx)}
+                      onMouseEnter={() => handleRowMouseEnter(idx)}
+                      style={{
+                        borderBottom: "0.5px solid rgba(255,255,255,0.05)",
+                        background: checked.includes(upload.id)
+                          ? "rgba(99,102,241,0.1)"
+                          : isDragging && dragStart !== null && dragEnd !== null && idx >= Math.min(dragStart, dragEnd) && idx <= Math.max(dragStart, dragEnd)
+                          ? "rgba(99,102,241,0.05)"
+                          : idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)",
+                        transition: "background 0.1s",
+                        outline: checked.includes(upload.id) ? "0.5px solid rgba(99,102,241,0.3)" : "none",
+                      }}
+                    >
                       <td style={{ padding: "12px 16px" }}>
-                        <input type="checkbox" checked={checked.includes(upload.id)} onChange={() => toggleCheck(upload.id)} />
+                        <input type="checkbox" checked={checked.includes(upload.id)} onChange={() => {}} onClick={(e) => { e.stopPropagation(); toggleCheck(upload.id, idx, e as any); }} />
                       </td>
                       <td style={{ padding: "12px 16px" }}>
                         <p style={{ fontSize: 13, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }}>{upload.file_name}</p>
@@ -297,11 +375,11 @@ export default function AdminPage() {
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           {upload.extracted_data && (
-                            <button onClick={() => setSelected(upload)} style={{ padding: "5px 12px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 8, color: "#a5b4fc", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                            <button onClick={(e) => { e.stopPropagation(); setSelected(upload); }} style={{ padding: "5px 12px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 8, color: "#a5b4fc", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
                               View
                             </button>
                           )}
-                          <button onClick={() => handleExtract(upload)} disabled={extracting === upload.id} style={{
+                          <button onClick={(e) => { e.stopPropagation(); handleExtract(upload); }} disabled={extracting === upload.id} style={{
                             padding: "5px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
                             opacity: extracting === upload.id ? 0.5 : 1,
                             background: upload.extracted_data ? hasParseError(upload.extracted_data) ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.06)" : "rgba(99,102,241,0.2)",
