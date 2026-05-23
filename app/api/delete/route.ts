@@ -38,9 +38,12 @@ export async function POST(request: NextRequest) {
         if (!isExtracted) {
           await supabase.from("uploads").delete().eq("id", upload.id);
         } else {
-          // Soft delete - keep record but mark r2_key as deleted
-          await supabase.from("uploads").update({ r2_key: null }).eq("id", upload.id);
-        }
+  // Soft delete - keep record but hide from dashboard
+  await supabase.from("uploads").update({ 
+    r2_key: null,
+    deleted_at: new Date().toISOString()
+  }).eq("id", upload.id);
+}
       }
     }
 

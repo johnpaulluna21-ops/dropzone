@@ -39,13 +39,14 @@ export default function AdminPage() {
   }, []);
 
   const fetchUploads = async () => {
-    const { data } = await supabase
-      .from("uploads")
-      .select("*")
-      .order("status", { ascending: true })
-      .order("created_at", { ascending: false });
-    setUploads(data || []);
-  };
+  const { data } = await supabase
+    .from("uploads")
+    .select("*")
+    .is("deleted_at", null)
+    .order("status", { ascending: true })
+    .order("created_at", { ascending: false });
+  setUploads(data || []);
+};
 
   const handleExtract = async (upload: any) => {
     setExtracting(upload.id);
