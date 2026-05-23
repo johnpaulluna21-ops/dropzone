@@ -8,18 +8,18 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<string[]>([]);
 
- const addFiles = (newFiles: FileList | null) => {
-  if (!newFiles) return;
-  const MAX_SIZE = 50 * 1024 * 1024; // 50MB
-  const oversized: string[] = [];
-  const valid: File[] = [];
-  Array.from(newFiles).forEach(f => {
-    if (f.size > MAX_SIZE) oversized.push(f.name);
-    else valid.push(f);
-  });
-  if (oversized.length > 0) alert(`These files exceed the 50MB limit and were skipped:\n${oversized.join("\n")}`);
-  setFiles(prev => [...prev, ...valid]);
-};
+  const addFiles = (newFiles: FileList | null) => {
+    if (!newFiles) return;
+    const MAX_SIZE = 4.5 * 1024 * 1024;
+    const oversized: string[] = [];
+    const valid: File[] = [];
+    Array.from(newFiles).forEach(f => {
+      if (f.size > MAX_SIZE) oversized.push(`${f.name} (${(f.size / 1024 / 1024).toFixed(1)}MB)`);
+      else valid.push(f);
+    });
+    if (oversized.length > 0) alert(`These files exceed the 4.5MB limit and were skipped:\n\n${oversized.join("\n")}\n\nPlease compress or split them before uploading.`);
+    setFiles(prev => [...prev, ...valid]);
+  };
 
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));
@@ -36,7 +36,7 @@ export default function Home() {
       try {
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
-        results.push(data.success ? `✅ ${file.name}` : data.error === "duplicate" ? `⚠️ ${file.name} — already uploaded` : `❌ ${file.name} — failed`);
+        results.push(data.success ? `✅ ${file.name}` : (data.error === "duplicate" || data.message?.includes("already")) ? `⚠️ ${file.name} — already uploaded, skipped` : `❌ ${file.name} — failed`);
       } catch {
         results.push(`❌ ${file.name}`);
       }
@@ -80,7 +80,6 @@ export default function Home() {
         overflow: "hidden",
       }}>
 
-        {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "2.5rem", animation: "fadeUp 0.5s ease both" }}>
           <div style={{ width: 38, height: 38, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <i className="ti ti-inbox" style={{ color: "#fff", fontSize: 18 }} />
@@ -89,7 +88,6 @@ export default function Home() {
           <span style={{ fontSize: 10, background: "rgba(99,102,241,0.2)", color: "#a5b4fc", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 20, padding: "2px 8px", letterSpacing: "0.5px" }}>BETA</span>
         </div>
 
-        {/* Card */}
         <div style={{
           background: "#1a1a1a",
           border: "0.5px solid rgba(255,255,255,0.08)",
@@ -106,7 +104,7 @@ export default function Home() {
                 <i className="ti ti-check" style={{ fontSize: 26, color: "#14b8a6" }} />
               </div>
               <p style={{ fontSize: 18, fontWeight: 600, color: "#fff", marginBottom: 8, letterSpacing: "-0.3px" }}>Documents received</p>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: "2rem", lineHeight: 1.6 }}>Your files are being processed. we&apos;ll extract and organize the data automatically.</p>
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: "2rem", lineHeight: 1.6 }}>Your files are being processed. We&apos;ll extract and organize the data automatically.</p>
 
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: "2rem", textAlign: "left" }}>
                 {[
@@ -137,7 +135,6 @@ export default function Home() {
                 <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>Upload files and we&apos;ll extract, organize, and deliver the data — automatically.</p>
               </div>
 
-              {/* Dropzone */}
               <div
                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
@@ -159,7 +156,8 @@ export default function Home() {
                   <i className="ti ti-cloud-upload" style={{ fontSize: 22, color: "rgba(255,255,255,0.5)" }} />
                 </div>
                 <p style={{ fontSize: 14, fontWeight: 500, color: "#fff", marginBottom: 4 }}>Drag & drop files here</p>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 14 }}>or click to browse — multiple files allowed</p>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: 8 }}>or click to browse — multiple files allowed</p>
+                <p style={{ fontSize: 11, color: "rgba(245,158,11,0.7)", marginBottom: 14 }}>⚠️ Max 4.5MB per file</p>
                 <div style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
                   {["PDF", "JPG / PNG", "Excel", "Word", "CSV"].map(t => (
                     <span key={t} style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "3px 10px" }}>{t}</span>
@@ -167,7 +165,6 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* File list */}
               {files.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: "1.25rem" }}>
                   {files.map((file, i) => {
@@ -180,21 +177,19 @@ export default function Home() {
                           <p style={{ fontSize: 13, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{file.name}</p>
                           <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{(file.size / 1024).toFixed(1)} KB</p>
                         </div>
-                        <button onClick={() => removeFile(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", fontSize: 18, cursor: "pointer", padding: "2px 4px", transition: "color 0.15s" }}>×</button>
+                        <button onClick={() => removeFile(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", fontSize: 18, cursor: "pointer", padding: "2px 4px" }}>×</button>
                       </div>
                     );
                   })}
                 </div>
               )}
 
-              {/* Progress */}
               {progress.length > 0 && (
                 <div style={{ marginBottom: "1.25rem" }}>
                   {progress.map((p, i) => <p key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>{p}</p>)}
                 </div>
               )}
 
-              {/* Submit */}
               <button
                 onClick={handleUpload}
                 disabled={files.length === 0 || uploading}
@@ -220,7 +215,6 @@ export default function Home() {
           )}
         </div>
 
-        {/* Footer */}
         <div style={{ marginTop: "1.75rem", display: "flex", alignItems: "center", gap: 16, fontSize: 11, color: "rgba(255,255,255,0.2)", animation: "fadeUp 0.5s 0.2s ease both" }}>
           <span><i className="ti ti-lock" style={{ fontSize: 12, verticalAlign: "-1px", marginRight: 4 }} />Encrypted in transit</span>
           <span style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "inline-block" }} />
