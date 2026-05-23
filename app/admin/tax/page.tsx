@@ -131,9 +131,10 @@ export default function TaxPage() {
           isNoTaxDue: item54 === 0 && item63 <= 0,
         });
 
-     cumulativeIncome = item51;
+    cumulativeIncome = item51;
         cumulativeCWT += item58;
         previousPaid += qPayment;
+        if (item63 < 0) previousPaid += Math.abs(item63);
       }
 
       setSummary({ client, quarters: qSummaries, totalForms: forms2307.length, priorCredit });
