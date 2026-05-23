@@ -20,6 +20,9 @@ export default function TaxPage() {
   const [newCredit, setNewCredit] = useState("");
   const [creditYear, setCreditYear] = useState(new Date().getFullYear().toString());
   const [year, setYear] = useState(new Date().getFullYear().toString());
+  const [editingClient, setEditingClient] = useState<any | null>(null);
+  const [editCredit, setEditCredit] = useState("");
+  const [editCreditYear, setEditCreditYear] = useState("");
 
   useEffect(() => { fetchClients(); }, []);
 
@@ -39,6 +42,27 @@ export default function TaxPage() {
     fetchClients();
   };
 
+  const saveEditClient = async () => {
+    if (!editingClient) return;
+    if (editCredit) {
+      const creditYearInt = parseInt(editCreditYear) || new Date().getFullYear() - 1;
+      const { data: existing } = await supabase
+        .from("prior_year_credits")
+        .select("id")
+        .eq("client_id", editingClient.id)
+        .eq("year", creditYearInt)
+        .single();
+      if (existing) {
+        await supabase.from("prior_year_credits").update({ excess_credit: parseFloat(editCredit) || 0 }).eq("id", existing.id);
+      } else {
+        await supabase.from("prior_year_credits").insert({ client_id: editingClient.id, year: creditYearInt, excess_credit: parseFloat(editCredit) || 0 });
+      }
+    }
+    setEditingClient(null);
+    setEditCredit("");
+    if (selected?.id === editingClient.id) computeSummary(editingClient);
+  };
+
   const computeSummary = async (client: any) => {
     setSelected(client);
     setLoading(true);
@@ -54,7 +78,6 @@ export default function TaxPage() {
                data?.payee_name?.toLowerCase().includes(client.name.toLowerCase());
       });
 
-      // Fetch prior year credits (Item 55)
       const { data: credits } = await supabase
         .from("prior_year_credits")
         .select("*")
@@ -62,14 +85,12 @@ export default function TaxPage() {
         .eq("year", parseInt(year) - 1);
       const priorCredit = credits?.reduce((sum: number, c: any) => sum + (c.excess_credit || 0), 0) || 0;
 
-      // Fetch tax payments per quarter (Item 56)
       const { data: payments } = await supabase
         .from("tax_payments")
         .select("*")
         .eq("client_id", client.id)
         .eq("year", parseInt(year));
 
-      // Group 2307s by quarter
       const quarters: any = { Q1: [], Q2: [], Q3: [], Q4: [] };
       forms2307.forEach(u => {
         const data = parseData(u.extracted_data);
@@ -81,79 +102,43 @@ export default function TaxPage() {
         else if (month >= 10 && month <= 12) quarters.Q4.push(data);
       });
 
-      // Compute per quarter following exact BIR 1701Q Schedule II & III logic
-      let cumulativeIncome = 0;       // Item 51 - running total
-      let cumulativeCWT = 0;          // Items 57+58 - running CWT total
-      let previousPaid = 0;           // Item 56 - tax paid previous quarters
-      const EXEMPTION = 250000;       // Item 52 - fixed ₱250,000
-
+      let cumulativeIncome = 0;
+      let cumulativeCWT = 0;
+      let previousPaid = 0;
+      const EXEMPTION = 250000;
       const qSummaries = [];
 
       for (const [q, forms] of Object.entries(quarters) as any) {
         const qNum = parseInt(q.replace("Q", ""));
-
-        // Item 47 - quarterly income from 2307s
         const item47 = forms.reduce((sum: number, f: any) => {
-  const val = String(f?.total_income || "0").replace(/,/g, "");
-  return sum + (parseFloat(val) || 0);
-}, 0);
-        // Item 48 - non-operating income (0 for now)
+          const val = String(f?.total_income || "0").replace(/,/g, "");
+          return sum + (parseFloat(val) || 0);
+        }, 0);
         const item48 = 0;
-        // Item 49 - total income this quarter
         const item49 = item47 + item48;
-        // Item 50 - cumulative income from previous quarters
         const item50 = cumulativeIncome;
-        // Item 51 - cumulative income to date
         const item51 = item49 + item50;
-        // Item 52 - less ₱250,000 exemption
         const item52 = EXEMPTION;
-        // Item 53 - taxable income to date (can be negative)
         const item53 = item51 - item52;
-        // Item 54 - tax due (min 0)
         const item54 = Math.max(0, item53 * 0.08);
-
-        // Item 55 - prior year excess credits (only Q1)
         const item55 = qNum === 1 ? priorCredit : 0;
-        // Item 56 - tax payments previous quarters
         const item56 = previousPaid;
-        // Item 57 - CWT from 2307s PREVIOUS quarters
         const item57 = cumulativeCWT;
-        // Item 58 - CWT from 2307s THIS quarter
         const item58 = forms.reduce((sum: number, f: any) => {
-  const val = String(f?.total_tax_withheld || "0").replace(/,/g, "");
-  return sum + (parseFloat(val) || 0);
-}, 0);
-        // Item 62 - total credits
+          const val = String(f?.total_tax_withheld || "0").replace(/,/g, "");
+          return sum + (parseFloat(val) || 0);
+        }, 0);
         const item62 = item55 + item56 + item57 + item58;
-        // Item 63 - tax payable (negative = overpayment)
         const item63 = item54 - item62;
-
-        // Get payment made for this quarter
         const qPayment = payments?.find((p: any) => p.quarter === qNum)?.amount_paid || 0;
 
         qSummaries.push({
-          quarter: q,
-          forms: forms.length,
-          // Schedule II
-          item47,  // quarterly income
-          item49,  // total income this quarter
-          item50,  // prev cumulative
-          item51,  // cumulative to date
-          item52,  // exemption
-          item53,  // taxable income (can be negative)
-          item54,  // tax due
-          // Schedule III
-          item55,  // prior year credits
-          item56,  // prev quarter payments
-          item57,  // prev quarter CWT
-          item58,  // this quarter CWT
-          item62,  // total credits
-          item63,  // tax payable
-          paid: qPayment,
-          isOverpayment: item63 < 0,
+          quarter: q, forms: forms.length,
+          item47, item49, item50, item51, item52, item53, item54,
+          item55, item56, item57, item58, item62, item63,
+          paid: qPayment, isOverpayment: item63 < 0,
         });
 
-        // Update running totals for next quarter
         cumulativeIncome = item51;
         cumulativeCWT += item58;
         previousPaid += qPayment;
@@ -231,7 +216,7 @@ export default function TaxPage() {
                   <input placeholder="Full name *" value={newName} onChange={e => setNewName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
                   <input placeholder="TIN (e.g. 123-456-789-0000)" value={newTin} onChange={e => setNewTin(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
                   <input placeholder="Prior year excess credit (₱)" value={newCredit} onChange={e => setNewCredit(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
-                  <input placeholder="Credit from year (e.g. 2024)" value={creditYear} onChange={e => setCreditYear(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
+                  <input placeholder="Credit from year (e.g. 2025)" value={creditYear} onChange={e => setCreditYear(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
                   <button onClick={addClient} style={{ width: "100%", padding: "8px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                     Save Client
                   </button>
@@ -242,9 +227,27 @@ export default function TaxPage() {
                 {clients.length === 0 ? (
                   <p style={{ padding: "2rem", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>No clients yet. Add one above.</p>
                 ) : clients.map(client => (
-                  <div key={client.id} onClick={() => computeSummary(client)} style={{ padding: "12px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.05)", cursor: "pointer", background: selected?.id === client.id ? "rgba(99,102,241,0.1)" : "transparent", transition: "background 0.15s" }}>
-                    <p style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{client.name}</p>
-                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{client.tin || "No TIN"}</p>
+                  <div key={client.id} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.05)" }}>
+                    <div onClick={() => computeSummary(client)} style={{ padding: "12px 16px", cursor: "pointer", background: selected?.id === client.id ? "rgba(99,102,241,0.1)" : "transparent", transition: "background 0.15s", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: "#fff" }}>{client.name}</p>
+                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{client.tin || "No TIN"}</p>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); setEditingClient(client); setEditCredit(""); setEditCreditYear((new Date().getFullYear() - 1).toString()); }} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, marginLeft: 8 }}>
+                        Edit
+                      </button>
+                    </div>
+                    {editingClient?.id === client.id && (
+                      <div style={{ padding: "12px 16px", background: "rgba(99,102,241,0.04)", borderTop: "0.5px solid rgba(255,255,255,0.06)" }}>
+                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Prior Year Excess Credit</p>
+                        <input placeholder="Amount (₱)" value={editCredit} onChange={e => setEditCredit(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8, outline: "none" }} />
+                        <input placeholder="From year (e.g. 2025)" value={editCreditYear} onChange={e => setEditCreditYear(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8, outline: "none" }} />
+                        <div style={{ display: "flex", gap: 6 }}>
+                          <button onClick={saveEditClient} style={{ flex: 1, padding: "7px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Save</button>
+                          <button onClick={() => setEditingClient(null)} style={{ padding: "7px 12px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -280,8 +283,6 @@ export default function TaxPage() {
                             {q.forms} 2307{q.forms !== 1 ? "s" : ""}
                           </span>
                         </div>
-
-                        {/* Schedule II */}
                         <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 6, textTransform: "uppercase" }}>Schedule II — Income</p>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
@@ -309,8 +310,6 @@ export default function TaxPage() {
                             <span style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{fmt(q.item54)}</span>
                           </div>
                         </div>
-
-                        {/* Schedule III */}
                         <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 6, textTransform: "uppercase" }}>Schedule III — Credits</p>
                         <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
                           {q.item55 > 0 && (
@@ -340,7 +339,6 @@ export default function TaxPage() {
                             <span style={{ fontSize: 11, color: "#6ee7b7", fontWeight: 600 }}>({fmt(q.item62)})</span>
                           </div>
                         </div>
-
                         <div style={{ height: "0.5px", background: "rgba(255,255,255,0.08)", margin: "8px 0" }} />
                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                           <span style={{ fontSize: 13, fontWeight: 700, color: q.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
