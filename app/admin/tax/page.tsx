@@ -121,17 +121,20 @@ export default function TaxPage() {
         const item62 = item55 + item56 + item57 + item58;
         const item63 = item54 - item62;
         const qPayment = payments?.find((p: any) => p.quarter === qNum)?.amount_paid || 0;
+        const overpaymentCarry = item63 < 0 ? Math.abs(item63) : 0;
 
         qSummaries.push({
           quarter: q, forms: forms.length,
           item47, item49, item50, item51, item52, item53, item54,
           item55, item56, item57, item58, item62, item63,
-          paid: qPayment, isOverpayment: item63 < 0,
+          paid: qPayment,
+          isOverpayment: item63 < 0,
+          isNoTaxDue: item54 === 0 && item63 <= 0,
         });
 
         cumulativeIncome = item51;
         cumulativeCWT += item58;
-        previousPaid += qPayment;
+        previousPaid += qPayment + overpaymentCarry;
       }
 
       setSummary({ client, quarters: qSummaries, totalForms: forms2307.length, priorCredit });
@@ -314,6 +317,12 @@ export default function TaxPage() {
                   <div style={{ display: "flex", gap: 6, marginBottom: "1.25rem" }}>
                     {summary.quarters.map((q: any) => {
                       const isActive = activeQuarter === q.quarter;
+                      const label = q.isNoTaxDue ? "No Tax Due" : q.isOverpayment ? "Overpaid" : fmt(q.item63);
+                      const labelColor = q.isNoTaxDue
+                        ? (isActive ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.2)")
+                        : q.isOverpayment
+                          ? "#6ee7b7"
+                          : (isActive ? "#fcd34d" : "rgba(252,211,77,0.5)");
                       return (
                         <button
                           key={q.quarter}
@@ -329,9 +338,7 @@ export default function TaxPage() {
                           <p style={{ fontSize: 11, color: isActive ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)" }}>
                             {q.forms} 2307{q.forms !== 1 ? "s" : ""}
                           </p>
-                          <p style={{ fontSize: 11, fontWeight: 600, color: q.isOverpayment ? "#6ee7b7" : (isActive ? "#fcd34d" : "rgba(252,211,77,0.5)"), marginTop: 4 }}>
-                            {q.isOverpayment ? "Overpaid" : fmt(q.item63)}
-                          </p>
+                          <p style={{ fontSize: 11, fontWeight: 600, color: labelColor, marginTop: 4 }}>{label}</p>
                         </button>
                       );
                     })}
@@ -402,12 +409,17 @@ export default function TaxPage() {
                           </div>
 
                           {/* Tax Payable */}
-                          <div style={{ marginTop: 16, padding: "14px 16px", background: activeQ.isOverpayment ? "rgba(16,185,129,0.08)" : "rgba(252,211,77,0.06)", border: `0.5px solid ${activeQ.isOverpayment ? "rgba(16,185,129,0.25)" : "rgba(252,211,77,0.2)"}`, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: 14, fontWeight: 700, color: activeQ.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
-                              63 · {activeQ.isOverpayment ? "Overpayment" : "Tax Payable"}
+                          <div style={{
+                            marginTop: 16, padding: "14px 16px",
+                            background: activeQ.isNoTaxDue ? "rgba(255,255,255,0.03)" : activeQ.isOverpayment ? "rgba(16,185,129,0.08)" : "rgba(252,211,77,0.06)",
+                            border: `0.5px solid ${activeQ.isNoTaxDue ? "rgba(255,255,255,0.08)" : activeQ.isOverpayment ? "rgba(16,185,129,0.25)" : "rgba(252,211,77,0.2)"}`,
+                            borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center"
+                          }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: activeQ.isNoTaxDue ? "rgba(255,255,255,0.4)" : activeQ.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
+                              63 · {activeQ.isNoTaxDue ? "No Tax Due" : activeQ.isOverpayment ? "Overpayment" : "Tax Payable"}
                             </span>
-                            <span style={{ fontSize: 16, fontWeight: 700, color: activeQ.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
-                              {activeQ.isOverpayment ? `(${fmt(activeQ.item63)})` : fmt(activeQ.item63)}
+                            <span style={{ fontSize: 16, fontWeight: 700, color: activeQ.isNoTaxDue ? "rgba(255,255,255,0.4)" : activeQ.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
+                              {activeQ.isNoTaxDue ? "₱0.00" : activeQ.isOverpayment ? `(${fmt(activeQ.item63)})` : fmt(activeQ.item63)}
                             </span>
                           </div>
                         </div>
