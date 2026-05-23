@@ -28,7 +28,7 @@ export default function Home() {
       try {
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
-        results.push(data.success ? `✅ ${file.name}` : `❌ ${file.name}`);
+        results.push(data.success ? `✅ ${file.name}` : data.error === "duplicate" ? `⚠️ ${file.name} — already uploaded` : `❌ ${file.name} — failed`);
       } catch {
         results.push(`❌ ${file.name}`);
       }

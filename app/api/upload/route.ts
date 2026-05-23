@@ -24,14 +24,24 @@ export async function POST(request: NextRequest) {
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
+    // Check for duplicate filename
+    const { data: existing } = await supabase
+      .from("uploads")
+      .select("id")
+      .eq("file_name", file.name)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      return NextResponse.json({ 
+        error: "duplicate", 
+        message: `${file.name} has already been uploaded.` 
+      }, { status: 409 });
+    }
+
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
     const fileId = uuidv4();
     const r2Key = `uploads/${fileId}-${file.name}`;
-
-    console.log("Uploading to R2:", r2Key);
-    console.log("Bucket:", process.env.CLOUDFLARE_R2_BUCKET_NAME);
-    console.log("Account:", process.env.CLOUDFLARE_R2_ACCOUNT_ID);
 
     await r2.send(new PutObjectCommand({
       Bucket: process.env.CLOUDFLARE_R2_BUCKET_NAME!,
@@ -39,8 +49,6 @@ export async function POST(request: NextRequest) {
       Body: buffer,
       ContentType: file.type,
     }));
-
-    console.log("R2 upload success");
 
     await supabase.from("uploads").insert({
       file_name: file.name,
