@@ -25,11 +25,11 @@ function cleanJson(text: string): string {
 
 async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string }> {
   try {
-    const compressed = await sharp(buffer)
+    const compressed = await sharp(Buffer.from(buffer))
       .resize(1500, 1500, { fit: "inside", withoutEnlargement: true })
       .jpeg({ quality: 80 })
       .toBuffer();
-    return { buffer: compressed, mimeType: "image/jpeg" };
+    return { buffer: Buffer.from(compressed), mimeType: "image/jpeg" };
   } catch {
     return { buffer, mimeType };
   }
@@ -60,7 +60,7 @@ export async function POST(request: NextRequest) {
     for await (const chunk of r2Object.Body as AsyncIterable<Uint8Array>) {
       chunks.push(chunk);
     }
-    let fileBuffer = Buffer.concat(chunks);
+    let fileBuffer: Buffer = Buffer.concat(chunks);
     const isImage = upload.file_type.startsWith("image/");
     const isPDF = upload.file_type === "application/pdf";
 
