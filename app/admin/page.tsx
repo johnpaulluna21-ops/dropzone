@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
+import Link from "next/link";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -37,14 +38,15 @@ export default function AdminPage() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
- const fetchUploads = async () => {
-  const { data } = await supabase
-    .from("uploads")
-    .select("*")
-    .order("status", { ascending: true })
-    .order("created_at", { ascending: false });
-  setUploads(data || []);
-};
+  const fetchUploads = async () => {
+    const { data } = await supabase
+      .from("uploads")
+      .select("*")
+      .order("status", { ascending: true })
+      .order("created_at", { ascending: false });
+    setUploads(data || []);
+  };
+
   const handleExtract = async (upload: any) => {
     setExtracting(upload.id);
     try {
@@ -238,17 +240,17 @@ export default function AdminPage() {
       `}</style>
 
       <main onClick={(e) => {
-  const target = e.target as HTMLElement;
-  if (!target.closest("table") && !target.closest("button")) {
-    setChecked([]);
-  }
-}} style={{
-  minHeight: "100vh",
-  background: "#0f0f0f",
-  backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%), radial-gradient(circle at bottom right, rgba(20,184,166,0.05) 0%, transparent 40%)",
-  padding: "2rem 1.5rem",
-  fontFamily: "'Inter', sans-serif",
-}}>
+        const target = e.target as HTMLElement;
+        if (!target.closest("table") && !target.closest("button")) {
+          setChecked([]);
+        }
+      }} style={{
+        minHeight: "100vh",
+        background: "#0f0f0f",
+        backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%), radial-gradient(circle at bottom right, rgba(20,184,166,0.05) 0%, transparent 40%)",
+        padding: "2rem 1.5rem",
+        fontFamily: "'Inter', sans-serif",
+      }}>
         <div style={{ maxWidth: 1400, margin: "0 auto" }}>
 
           {/* Header */}
@@ -264,6 +266,9 @@ export default function AdminPage() {
             </div>
 
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <Link href="/admin/tax" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, fontWeight: 500, textDecoration: "none" }}>
+                <i className="ti ti-calculator" style={{ fontSize: 14 }} /> Tax Summary
+              </Link>
               <button onClick={handleExportAll} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
                 <i className="ti ti-table-export" style={{ fontSize: 14 }} /> Export All
               </button>
