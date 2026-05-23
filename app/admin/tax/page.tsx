@@ -25,6 +25,7 @@ export default function TaxPage() {
   const [editingClient, setEditingClient] = useState<any | null>(null);
   const [editCredit, setEditCredit] = useState("");
   const [editCreditYear, setEditCreditYear] = useState("");
+  const [editPayments, setEditPayments] = useState<{ Q1: string; Q2: string; Q3: string }>({ Q1: "", Q2: "", Q3: "" });
   const [search, setSearch] = useState("");
   const [listOpen, setListOpen] = useState(false);
   const [page, setPage] = useState(1);
@@ -51,6 +52,8 @@ export default function TaxPage() {
 
   const saveEditClient = async () => {
     if (!editingClient) return;
+
+    // Save prior year credit
     if (editCredit) {
       const creditYearInt = parseInt(editCreditYear) || new Date().getFullYear() - 1;
       const { data: existing } = await supabase
@@ -62,8 +65,27 @@ export default function TaxPage() {
         await supabase.from("prior_year_credits").insert({ client_id: editingClient.id, year: creditYearInt, excess_credit: parseFloat(editCredit) || 0 });
       }
     }
+
+    // Save quarterly payments
+    for (const [q, amount] of Object.entries(editPayments)) {
+      if (amount === "") continue;
+      const qNum = parseInt(q.replace("Q", ""));
+      const amountPaid = parseFloat(amount) || 0;
+      const { data: existing } = await supabase
+        .from("tax_payments").select("id")
+        .eq("client_id", editingClient.id)
+        .eq("year", parseInt(year))
+        .eq("quarter", qNum).single();
+      if (existing) {
+        await supabase.from("tax_payments").update({ amount_paid: amountPaid }).eq("id", existing.id);
+      } else {
+        await supabase.from("tax_payments").insert({ client_id: editingClient.id, year: parseInt(year), quarter: qNum, amount_paid: amountPaid });
+      }
+    }
+
     setEditingClient(null);
     setEditCredit("");
+    setEditPayments({ Q1: "", Q2: "", Q3: "" });
     if (selected?.id === editingClient.id) computeSummary(editingClient);
   };
 
@@ -114,7 +136,7 @@ export default function TaxPage() {
         const item52 = EXEMPTION;
         const item53 = item51 - item52;
         const item54 = Math.max(0, item53 * 0.08);
-        const item55 = qNum === 1 ? priorCredit : 0;
+        const item55 = priorCredit;
         const item56 = previousPaid;
         const item57 = cumulativeCWT;
         const item58 = forms.reduce((sum: number, f: any) => sum + (parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0), 0);
@@ -131,10 +153,9 @@ export default function TaxPage() {
           isNoTaxDue: item54 === 0 && item63 <= 0,
         });
 
-    cumulativeIncome = item51;
+        cumulativeIncome = item51;
         cumulativeCWT += item58;
         previousPaid += qPayment;
-        if (item63 < 0) previousPaid += Math.abs(item63);
       }
 
       setSummary({ client, quarters: qSummaries, totalForms: forms2307.length, priorCredit });
@@ -264,16 +285,31 @@ export default function TaxPage() {
                           <p style={{ fontSize: 12, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{client.name}</p>
                           <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{client.tin || "No TIN"}</p>
                         </div>
-                        <button onClick={(e) => { e.stopPropagation(); setEditingClient(client); setEditCredit(""); setEditCreditYear((new Date().getFullYear() - 1).toString()); }} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, marginLeft: 8 }}>
+                        <button onClick={(e) => { e.stopPropagation(); setEditingClient(client); setEditCredit(""); setEditCreditYear((new Date().getFullYear() - 1).toString()); setEditPayments({ Q1: "", Q2: "", Q3: "" }); }} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, marginLeft: 8 }}>
                           Edit
                         </button>
                       </div>
                       {editingClient?.id === client.id && (
                         <div style={{ padding: "12px 16px", background: "rgba(99,102,241,0.04)", borderTop: "0.5px solid rgba(255,255,255,0.06)" }}>
-                          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>Prior Year Excess Credit</p>
-                          <input placeholder="Amount (₱)" value={editCredit} onChange={e => setEditCredit(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8, outline: "none" }} />
-                          <input placeholder="From year (e.g. 2025)" value={editCreditYear} onChange={e => setEditCreditYear(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8, outline: "none" }} />
-                          <div style={{ display: "flex", gap: 6 }}>
+
+                          {/* Prior Year Credit */}
+                          <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Prior Year Excess Credit</p>
+                          <input placeholder="Amount (₱)" value={editCredit} onChange={e => setEditCredit(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
+                          <input placeholder="From year (e.g. 2025)" value={editCreditYear} onChange={e => setEditCreditYear(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 12, outline: "none" }} />
+
+                          {/* Quarterly Tax Payments */}
+                          <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Tax Payments Made ({year})</p>
+                          {(["Q1", "Q2", "Q3"] as const).map(q => (
+                            <input
+                              key={q}
+                              placeholder={`${q} payment (₱)`}
+                              value={editPayments[q]}
+                              onChange={e => setEditPayments(prev => ({ ...prev, [q]: e.target.value }))}
+                              style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }}
+                            />
+                          ))}
+
+                          <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
                             <button onClick={saveEditClient} style={{ flex: 1, padding: "7px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Save</button>
                             <button onClick={() => setEditingClient(null)} style={{ padding: "7px 12px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
                           </div>
@@ -379,25 +415,11 @@ export default function TaxPage() {
                         <div>
                           <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 10, textTransform: "uppercase" }}>Schedule III — Credits</p>
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                            {activeQ.item55 > 0 && (
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
-                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>55 · Prior Year Credits</span>
-                                <span style={{ fontSize: 12, color: "#6ee7b7" }}>({fmt(activeQ.item55)})</span>
-                              </div>
-                            )}
-                            {activeQ.item56 > 0 && (
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
-                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>56 · Prev Qtr Payments</span>
-                                <span style={{ fontSize: 12, color: "#6ee7b7" }}>({fmt(activeQ.item56)})</span>
-                              </div>
-                            )}
-                            {activeQ.item57 > 0 && (
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
-                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>57 · CWT Prev Quarters</span>
-                                <span style={{ fontSize: 12, color: "#6ee7b7" }}>({fmt(activeQ.item57)})</span>
-                              </div>
-                            )}
+                            {/* Always show 55, 56, 57, 58 */}
                             {[
+                              { label: "55 · Prior Year Credits", value: `(${fmt(activeQ.item55)})`, color: "#6ee7b7" },
+                              { label: "56 · Prev Qtr Payments", value: `(${fmt(activeQ.item56)})`, color: "#6ee7b7" },
+                              { label: "57 · CWT Prev Quarters", value: `(${fmt(activeQ.item57)})`, color: "#6ee7b7" },
                               { label: "58 · CWT This Quarter", value: `(${fmt(activeQ.item58)})`, color: "#6ee7b7" },
                               { label: "62 · Total Credits", value: `(${fmt(activeQ.item62)})`, color: "#6ee7b7", bold: true },
                             ].map(row => (
