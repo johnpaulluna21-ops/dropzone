@@ -23,6 +23,7 @@ export default function TaxPage() {
   const [editingClient, setEditingClient] = useState<any | null>(null);
   const [editCredit, setEditCredit] = useState("");
   const [editCreditYear, setEditCreditYear] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => { fetchClients(); }, []);
 
@@ -163,6 +164,11 @@ export default function TaxPage() {
 
   const fmt = (n: number) => `₱${Math.abs(n).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
+  const filteredClients = clients.filter(c =>
+    c.name.toLowerCase().includes(search.toLowerCase()) ||
+    (c.tin || "").includes(search)
+  );
+
   return (
     <>
       <style suppressHydrationWarning>{`
@@ -211,6 +217,16 @@ export default function TaxPage() {
                 </button>
               </div>
 
+              {/* Search */}
+              <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
+                <input
+                  placeholder="Search name or TIN..."
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit" }}
+                />
+              </div>
+
               {showAddClient && (
                 <div style={{ padding: "12px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", background: "rgba(99,102,241,0.04)" }}>
                   <input placeholder="Full name *" value={newName} onChange={e => setNewName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
@@ -224,9 +240,11 @@ export default function TaxPage() {
               )}
 
               <div style={{ flex: 1, overflowY: "auto" }}>
-                {clients.length === 0 ? (
-                  <p style={{ padding: "2rem", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>No clients yet. Add one above.</p>
-                ) : clients.map(client => (
+                {filteredClients.length === 0 ? (
+                  <p style={{ padding: "2rem", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>
+                    {search ? "No clients match your search." : "No clients yet. Add one above."}
+                  </p>
+                ) : filteredClients.map(client => (
                   <div key={client.id} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.05)" }}>
                     <div onClick={() => computeSummary(client)} style={{ padding: "12px 16px", cursor: "pointer", background: selected?.id === client.id ? "rgba(99,102,241,0.1)" : "transparent", transition: "background 0.15s", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
