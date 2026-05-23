@@ -61,6 +61,8 @@ const EditForm = ({
   </div>
 );
 
+const MONTHS = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
+
 export default function TaxPage() {
   const [clients, setClients] = useState<any[]>([]);
   const [selected, setSelected] = useState<any | null>(null);
@@ -199,8 +201,6 @@ export default function TaxPage() {
     if (selected?.id === editingClient.id) computeSummary({ ...editingClient, tax_type: editTaxType });
   }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editCredit, editCreditYear, editPayments, deletedPayments, year, selected]);
 
-  const MONTHS = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
-
   const generateSAWT = async (client: any, quarterNum: number, quarterForms: any[]) => {
     const tin = (client.tin || "").replace(/\D/g, "");
     const tinMain = tin.substring(0, 9).padEnd(9, "0");
@@ -210,45 +210,46 @@ export default function TaxPage() {
     const middleName = client.middle_name || "";
     const rdo = client.rdo_code || "000";
     const lastMonth = quarterNum * 3;
-    const period = `${String(lastMonth).padStart(2, "0")}/${year}`;
+    const lastMonthPadded = String(lastMonth).padStart(2, "0");
+    const period = `${lastMonthPadded}/${year}`;
     const monthName = MONTHS[lastMonth - 1];
     const displayTin = `${tinMain.substring(0,3)}-${tinMain.substring(3,6)}-${tinMain.substring(6,9)}-${tinBranch}`;
+    const fullName = `${lastName}, ${firstName} ${middleName}`.trim();
 
-    const totalIncome = quarterForms.reduce((sum, f) => sum + (parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0), 0);
-    const totalTax = quarterForms.reduce((sum, f) => sum + (parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0), 0);
+    const totalIncome = quarterForms.reduce((sum: number, f: any) => sum + (parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0), 0);
+    const totalTax = quarterForms.reduce((sum: number, f: any) => sum + (parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0), 0);
 
-    // 1. Generate DAT file
-    const lines = [];
+    // 1. Generate DAT — one D line per 2307
+    const lines: string[] = [];
     lines.push(`HSAWT,H1701Q,${tinMain},${tinBranch},"","${lastName}","${firstName}","${middleName}",${period},${rdo}`);
-    quarterForms.forEach((f, i) => {
+    quarterForms.forEach((f: any, i: number) => {
       const payorTin = (f?.atc_tin || f?.payor_tin || "").replace(/\D/g, "").substring(0, 9).padEnd(9, "0");
-      const payorBranch = "0000";
-      const payorName = (f?.payor_name || f?.client_name || "").toUpperCase().replace(/"/g, "");
+      const payorName = (f?.payor_name || f?.client_name || "").toUpperCase().replace(/"/g, "").replace(/\.$/, "").trim();
       const atc = f?.atc || "WI120";
       const income = parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0;
       const tax = parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0;
-      lines.push(`DSAWT,D1701Q,${i + 1},${payorTin},${payorBranch},"${payorName}",,,,${period},,${atc},2.00,${income.toFixed(2)},${tax.toFixed(2)}`);
+      lines.push(`DSAWT,D1701Q,${i + 1},${payorTin},0000,"${payorName}",,,,${period},,${atc},2.00,${income.toFixed(2)},${tax.toFixed(2)}`);
     });
     lines.push(`CSAWT,C1701Q,${tinMain},${tinBranch},${period},${totalIncome.toFixed(2)},${totalTax.toFixed(2)}`);
+
     const datContent = lines.join("\r\n") + "\r\n";
     const datBlob = new Blob([datContent], { type: "text/plain" });
     const datUrl = URL.createObjectURL(datBlob);
     const datLink = document.createElement("a");
     datLink.href = datUrl;
-    datLink.download = `${tinMain}${tinBranch}${String(quarterNum).padStart(2, "0")}${year}1701Q.DAT`;
+    datLink.download = `${tinMain}${tinBranch}${lastMonthPadded}${year}1701Q.DAT`;
     datLink.click();
     URL.revokeObjectURL(datUrl);
 
-    // 2. Generate PDF report via print window
+    // 2. Generate PDF
     const fmtNum = (n: number) => n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-    const fullName = `${lastName}, ${firstName} ${middleName}`.trim();
 
-    const tableRows = quarterForms.map((f, i) => {
+    const tableRows = quarterForms.map((f: any, i: number) => {
       const payorTinRaw = (f?.atc_tin || f?.payor_tin || "").replace(/\D/g, "");
       const payorTinFmt = payorTinRaw.length >= 9
         ? `${payorTinRaw.substring(0,3)}-${payorTinRaw.substring(3,6)}-${payorTinRaw.substring(6,9)}-${payorTinRaw.substring(9,13) || "0000"}`
         : payorTinRaw;
-      const payorName = (f?.payor_name || f?.client_name || "").toUpperCase();
+      const payorName = (f?.payor_name || f?.client_name || "").toUpperCase().replace(/\.$/, "").trim();
       const atc = f?.atc || "WI120";
       const income = parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0;
       const tax = parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0;
@@ -277,10 +278,7 @@ export default function TaxPage() {
           .header { text-align: center; margin-bottom: 6px; }
           .header h2 { font-size: 11pt; font-weight: bold; margin: 0; }
           .header h3 { font-size: 10pt; font-weight: bold; margin: 2px 0; }
-          .header p { font-size: 9pt; margin: 2px 0; }
           .meta { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 9pt; }
-          .meta-left { }
-          .meta-right { text-align: right; }
           table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
           th { border: 1px solid #000; padding: 4px 6px; text-align: center; background: #f0f0f0; font-size: 8pt; }
           td { border: 1px solid #000; padding: 3px 6px; }
@@ -295,11 +293,11 @@ export default function TaxPage() {
           <h3>SUMMARY ALPHALIST OF WITHHOLDING TAXES (SAWT)</h3>
         </div>
         <div class="meta">
-          <div class="meta-left">
+          <div>
             <strong>PAYEE'S NAME:</strong> ${fullName}<br>
             <strong>TIN:</strong> ${displayTin}
           </div>
-          <div class="meta-right">
+          <div style="text-align:right">
             <strong>FOR THE MONTH OF ${monthName}, ${year}</strong>
           </div>
         </div>
@@ -324,9 +322,7 @@ export default function TaxPage() {
             </tr>
           </tbody>
         </table>
-        <div class="grand-total">
-          GRAND TOTAL &nbsp;&nbsp;&nbsp; ${fmtNum(totalTax)}
-        </div>
+        <div class="grand-total">GRAND TOTAL &nbsp;&nbsp;&nbsp; ${fmtNum(totalTax)}</div>
         <div class="footer">END OF REPORT</div>
       </body>
       </html>
@@ -337,9 +333,7 @@ export default function TaxPage() {
       printWindow.document.write(html);
       printWindow.document.close();
       printWindow.focus();
-      setTimeout(() => {
-        printWindow.print();
-      }, 500);
+      setTimeout(() => { printWindow.print(); }, 500);
     }
   };
 
