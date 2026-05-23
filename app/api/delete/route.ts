@@ -18,19 +18,31 @@ export async function POST(request: NextRequest) {
 
     const { data: uploads } = await supabase
       .from("uploads")
-      .select("id, r2_key")
+      .select("id, r2_key, status, extracted_data")
       .in("id", ids);
 
     if (uploads) {
       for (const upload of uploads) {
-        await r2.send(new DeleteObjectCommand({
-          Bucket: BUCKET_NAME,
-          Key: upload.r2_key,
-        }));
+        // Always delete from R2
+        try {
+          await r2.send(new DeleteObjectCommand({
+            Bucket: BUCKET_NAME,
+            Key: upload.r2_key,
+          }));
+        } catch {
+          // R2 file may already be gone, continue
+        }
+
+        // Only delete Supabase record if not extracted (no useful data)
+        const isExtracted = upload.status === "extracted" && upload.extracted_data && !upload.extracted_data?.parse_error;
+        if (!isExtracted) {
+          await supabase.from("uploads").delete().eq("id", upload.id);
+        } else {
+          // Soft delete - keep record but mark r2_key as deleted
+          await supabase.from("uploads").update({ r2_key: null }).eq("id", upload.id);
+        }
       }
     }
-
-    await supabase.from("uploads").delete().in("id", ids);
 
     return NextResponse.json({ success: true });
   } catch (error) {
