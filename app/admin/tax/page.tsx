@@ -121,7 +121,6 @@ export default function TaxPage() {
         const item62 = item55 + item56 + item57 + item58;
         const item63 = item54 - item62;
         const qPayment = payments?.find((p: any) => p.quarter === qNum)?.amount_paid || 0;
-        const overpaymentCarry = item63 < 0 ? Math.abs(item63) : 0;
 
         qSummaries.push({
           quarter: q, forms: forms.length,
@@ -132,9 +131,9 @@ export default function TaxPage() {
           isNoTaxDue: item54 === 0 && item63 <= 0,
         });
 
-        cumulativeIncome = item51;
+     cumulativeIncome = item51;
         cumulativeCWT += item58;
-        previousPaid += qPayment + overpaymentCarry;
+        previousPaid += qPayment;
       }
 
       setSummary({ client, quarters: qSummaries, totalForms: forms2307.length, priorCredit });
