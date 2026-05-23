@@ -39,10 +39,16 @@ export async function POST(request: NextRequest) {
           await supabase.from("uploads").delete().eq("id", upload.id);
         } else {
   // Soft delete - keep record but hide from dashboard
-  await supabase.from("uploads").update({ 
-    r2_key: null,
-    deleted_at: new Date().toISOString()
-  }).eq("id", upload.id);
+  const { data, error } = await supabase
+    .from("uploads")
+    .update({ 
+      r2_key: null,
+      deleted_at: new Date().toISOString()
+    })
+    .eq("id", upload.id)
+    .select();
+
+  console.log("Soft delete result:", JSON.stringify({ data, error, id: upload.id }));
 }
       }
     }
