@@ -5,6 +5,8 @@ import { createClient } from "@supabase/supabase-js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { r2, BUCKET_NAME } from "../../../lib/r2";
 import sharp from "sharp";
+import * as XLSX from "xlsx";
+import mammoth from "mammoth";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -35,6 +37,41 @@ async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer
   }
 }
 
+function extractTextFromExcel(buffer: Buffer): string {
+  const workbook = XLSX.read(buffer, { type: "buffer" });
+  const lines: string[] = [];
+  workbook.SheetNames.forEach((sheetName) => {
+    lines.push(`Sheet: ${sheetName}`);
+    const sheet = workbook.Sheets[sheetName];
+    const csv = XLSX.utils.sheet_to_csv(sheet);
+    lines.push(csv);
+  });
+  return lines.join("\n");
+}
+
+function extractTextFromCsv(buffer: Buffer): string {
+  return buffer.toString("utf-8");
+}
+
+async function extractTextFromWord(buffer: Buffer): Promise<string> {
+  const result = await mammoth.extractRawText({ buffer });
+  return result.value;
+}
+
+async function callClaudeWithText(text: string): Promise<any> {
+  const message = await anthropic.messages.create({
+    model: "claude-opus-4-5",
+    max_tokens: 2048,
+    messages: [
+      {
+        role: "user",
+        content: `Extract all key information from this document content. Return a JSON object with fields like: document_type, date, amount, name, address, and any other relevant fields you find. Return only valid JSON, nothing else.\n\nDocument content:\n${text.slice(0, 8000)}`,
+      },
+    ],
+  });
+  return message.content[0].type === "text" ? message.content[0].text : "";
+}
+
 export async function POST(request: NextRequest) {
   try {
     const { uploadId } = await request.json();
@@ -61,24 +98,25 @@ export async function POST(request: NextRequest) {
       chunks.push(chunk);
     }
     let fileBuffer: Buffer = Buffer.concat(chunks);
+
     const isImage = upload.file_type.startsWith("image/");
     const isPDF = upload.file_type === "application/pdf";
+    const isExcel = ["application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", "application/vnd.ms-excel"].includes(upload.file_type);
+    const isCsv = upload.file_type === "text/csv" || upload.file_name?.endsWith(".csv");
+    const isWord = ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"].includes(upload.file_type);
+    const isText = upload.file_type === "text/plain";
 
     let finalMimeType = upload.file_type;
-
-    // Compress images over 1MB
-    if (isImage && fileBuffer.length > 1024 * 1024) {
-      const compressed = await compressImage(fileBuffer, upload.file_type);
-      fileBuffer = compressed.buffer;
-      finalMimeType = compressed.mimeType;
-    }
-
-    const base64File = fileBuffer.toString("base64");
-
-    let message;
+    let extractedText = "";
 
     if (isImage) {
-      message = await anthropic.messages.create({
+      if (fileBuffer.length > 1024 * 1024) {
+        const compressed = await compressImage(fileBuffer, upload.file_type);
+        fileBuffer = compressed.buffer;
+        finalMimeType = compressed.mimeType;
+      }
+      const base64File = fileBuffer.toString("base64");
+      const message = await anthropic.messages.create({
         model: "claude-opus-4-5",
         max_tokens: 2048,
         messages: [
@@ -87,11 +125,7 @@ export async function POST(request: NextRequest) {
             content: [
               {
                 type: "image",
-                source: {
-                  type: "base64",
-                  media_type: finalMimeType as any,
-                  data: base64File,
-                },
+                source: { type: "base64", media_type: finalMimeType as any, data: base64File },
               },
               {
                 type: "text",
@@ -101,21 +135,20 @@ export async function POST(request: NextRequest) {
           },
         ],
       });
+      extractedText = message.content[0].type === "text" ? message.content[0].text : "";
+
     } else if (isPDF) {
-      message = await anthropic.messages.create({
+      const base64File = fileBuffer.toString("base64");
+      const message = await anthropic.messages.create({
         model: "claude-opus-4-5",
-        max_tokens: 1024,
+        max_tokens: 2048,
         messages: [
           {
             role: "user",
             content: [
               {
                 type: "document",
-                source: {
-                  type: "base64",
-                  media_type: "application/pdf",
-                  data: base64File,
-                },
+                source: { type: "base64", media_type: "application/pdf", data: base64File },
               },
               {
                 type: "text",
@@ -125,11 +158,27 @@ export async function POST(request: NextRequest) {
           },
         ],
       });
+      extractedText = message.content[0].type === "text" ? message.content[0].text : "";
+
+    } else if (isExcel) {
+      const text = extractTextFromExcel(fileBuffer);
+      extractedText = await callClaudeWithText(text);
+
+    } else if (isCsv) {
+      const text = extractTextFromCsv(fileBuffer);
+      extractedText = await callClaudeWithText(text);
+
+    } else if (isWord) {
+      const text = await extractTextFromWord(fileBuffer);
+      extractedText = await callClaudeWithText(text);
+
+    } else if (isText) {
+      const text = fileBuffer.toString("utf-8");
+      extractedText = await callClaudeWithText(text);
+
     } else {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
     }
-
-    const extractedText = message.content[0].type === "text" ? message.content[0].text : "";
 
     let extractedData;
     try {
@@ -138,12 +187,16 @@ export async function POST(request: NextRequest) {
       extractedData = { raw: extractedText, parse_error: true };
     }
 
+    // Auto-save document_type to its own column
+    const documentType = extractedData?.document_type || null;
+
     await supabase
       .from("uploads")
       .update({
         extracted_data: extractedData,
         extracted_at: new Date().toISOString(),
         status: "extracted",
+        ...(documentType && { document_type: documentType }),
       })
       .eq("id", uploadId);
 
