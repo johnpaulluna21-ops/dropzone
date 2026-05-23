@@ -9,6 +9,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+const PAGE_SIZE = 20;
+
 export default function AdminPage() {
   const [uploads, setUploads] = useState<any[]>([]);
   const [extracting, setExtracting] = useState<string | null>(null);
@@ -16,6 +18,9 @@ export default function AdminPage() {
   const [checked, setChecked] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [bulkExtracting, setBulkExtracting] = useState(false);
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [page, setPage] = useState(1);
 
   useEffect(() => {
     fetchUploads();
@@ -73,9 +78,7 @@ export default function AdminPage() {
     if (toRerun.length === 0) return;
     if (!confirm(`Force re-run ${toRerun.length} file(s)? This will overwrite existing data.`)) return;
     setBulkExtracting(true);
-    for (const upload of toRerun) {
-      await handleExtract(upload);
-    }
+    for (const upload of toRerun) { await handleExtract(upload); }
     setBulkExtracting(false);
     setChecked([]);
   };
@@ -137,7 +140,7 @@ export default function AdminPage() {
   };
 
   const toggleAll = () => {
-    setChecked(checked.length === uploads.length ? [] : uploads.map(u => u.id));
+    setChecked(checked.length === filteredUploads.length ? [] : filteredUploads.map(u => u.id));
   };
 
   const parseExtractedData = (data: any) => {
@@ -154,6 +157,15 @@ export default function AdminPage() {
     return parsed?.parse_error === true;
   };
 
+  // Filter and search
+  const filteredUploads = uploads.filter(u => {
+    const matchSearch = u.file_name?.toLowerCase().includes(search.toLowerCase());
+    const matchStatus = statusFilter === "all" || u.status === statusFilter;
+    return matchSearch && matchStatus;
+  });
+
+  const totalPages = Math.ceil(filteredUploads.length / PAGE_SIZE);
+  const paginatedUploads = filteredUploads.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const pendingCount = uploads.filter(u => checked.includes(u.id) && (!u.extracted_data || hasParseError(u.extracted_data))).length;
 
   return (
@@ -180,7 +192,7 @@ export default function AdminPage() {
         <div style={{ maxWidth: 1400, margin: "0 auto" }}>
 
           {/* Header */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: "2rem", animation: "fadeUp 0.4s ease both" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: "1.5rem", animation: "fadeUp 0.4s ease both" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 38, height: 38, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
                 <i className="ti ti-layout-dashboard" style={{ color: "#fff", fontSize: 18 }} />
@@ -217,16 +229,39 @@ export default function AdminPage() {
             </div>
           </div>
 
+          {/* Search + Filter */}
+          <div style={{ display: "flex", gap: 10, marginBottom: "1.25rem", animation: "fadeUp 0.4s 0.05s ease both" }}>
+            <div style={{ flex: 1, position: "relative" }}>
+              <i className="ti ti-search" style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", fontSize: 14, color: "rgba(255,255,255,0.3)" }} />
+              <input
+                type="text"
+                placeholder="Search by filename..."
+                value={search}
+                onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+                style={{ width: "100%", padding: "9px 12px 9px 34px", background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#fff", fontSize: 13, fontFamily: "inherit", outline: "none" }}
+              />
+            </div>
+            <select
+              value={statusFilter}
+              onChange={(e) => { setStatusFilter(e.target.value); setPage(1); }}
+              style={{ padding: "9px 14px", background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.6)", fontSize: 13, fontFamily: "inherit", cursor: "pointer", outline: "none" }}
+            >
+              <option value="all">All Status</option>
+              <option value="pending">Pending</option>
+              <option value="extracted">Extracted</option>
+            </select>
+          </div>
+
           {/* Main Grid */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, animation: "fadeUp 0.4s 0.1s ease both" }}>
 
             {/* Table */}
-            <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden" }}>
+            <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "rgba(255,255,255,0.03)", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}>
                     <th style={{ padding: "12px 16px", width: 40 }}>
-                      <input type="checkbox" checked={checked.length === uploads.length && uploads.length > 0} onChange={toggleAll} />
+                      <input type="checkbox" checked={paginatedUploads.length > 0 && paginatedUploads.every(u => checked.includes(u.id))} onChange={toggleAll} />
                     </th>
                     <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.3)", letterSpacing: "0.5px", textTransform: "uppercase" }}>File</th>
                     <th style={{ padding: "12px 16px", textAlign: "left", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.3)", letterSpacing: "0.5px", textTransform: "uppercase" }}>Status</th>
@@ -234,7 +269,13 @@ export default function AdminPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {uploads.map((upload, idx) => (
+                  {paginatedUploads.length === 0 ? (
+                    <tr>
+                      <td colSpan={4} style={{ padding: "2rem", textAlign: "center", color: "rgba(255,255,255,0.25)", fontSize: 13 }}>
+                        No documents found
+                      </td>
+                    </tr>
+                  ) : paginatedUploads.map((upload, idx) => (
                     <tr key={upload.id} style={{ borderBottom: "0.5px solid rgba(255,255,255,0.05)", background: checked.includes(upload.id) ? "rgba(99,102,241,0.06)" : idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.01)", transition: "background 0.15s" }}>
                       <td style={{ padding: "12px 16px" }}>
                         <input type="checkbox" checked={checked.includes(upload.id)} onChange={() => toggleCheck(upload.id)} />
@@ -275,6 +316,24 @@ export default function AdminPage() {
                   ))}
                 </tbody>
               </table>
+
+              {/* Pagination */}
+              {totalPages > 1 && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderTop: "0.5px solid rgba(255,255,255,0.06)" }}>
+                  <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
+                    Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredUploads.length)} of {filteredUploads.length}
+                  </p>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: "5px 12px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", opacity: page === 1 ? 0.4 : 1 }}>
+                      ← Prev
+                    </button>
+                    <span style={{ padding: "5px 12px", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{page} / {totalPages}</span>
+                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: "5px 12px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", opacity: page === totalPages ? 0.4 : 1 }}>
+                      Next →
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Preview Panel */}
