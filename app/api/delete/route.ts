@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Only delete Supabase record if not extracted (no useful data)
-        const isExtracted = upload.status === "extracted" && upload.extracted_data && !upload.extracted_data?.parse_error;
+        const isExtracted = upload.status === "extracted" && upload.extracted_data !== null;
         if (!isExtracted) {
           await supabase.from("uploads").delete().eq("id", upload.id);
         } else {
