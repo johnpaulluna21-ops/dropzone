@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
       .from("uploads")
       .select("file_name")
       .in("file_name", fileNames);
-    const duplicates = (data || []).map((d: any) => d.file_name);
+    const duplicates = (data || []).map((d: { file_name: string }) => d.file_name);
     return NextResponse.json({ duplicates });
   } catch (error) {
     console.error(error);
