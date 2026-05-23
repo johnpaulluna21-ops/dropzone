@@ -58,14 +58,48 @@ async function extractTextFromWord(buffer: Buffer): Promise<string> {
   return result.value;
 }
 
-async function callClaudeWithText(text: string): Promise<any> {
+const GENERIC_PROMPT = `Extract all key information from this document. Return a JSON object with fields like: document_type, date, amount, name, address, and any other relevant fields you find. Return only valid JSON, nothing else.`;
+
+const BIR_2307_PROMPT = `This is a BIR Form 2307 (Certificate of Creditable Tax Withheld at Source). Extract the following fields precisely and return only valid JSON, nothing else:
+
+{
+  "document_type": "BIR Form 2307",
+  "period_from": "(MM/DD/YYYY)",
+  "period_to": "(MM/DD/YYYY)",
+  "payee_name": "",
+  "payee_tin": "",
+  "payee_address": "",
+  "payor_name": "",
+  "payor_tin": "",
+  "payor_address": "",
+  "atc": "",
+  "month_1_income": null,
+  "month_2_income": null,
+  "month_3_income": null,
+  "total_income": null,
+  "total_tax_withheld": null
+}
+
+IMPORTANT: The income amount appears in only ONE of the three month columns depending on which month it covers:
+- If amount is in "1st Month of the Quarter" column → put in month_1_income, leave month_2_income and month_3_income as null
+- If amount is in "2nd Month of the Quarter" column → put in month_2_income, leave others as null  
+- If amount is in "3rd Month of the Quarter" column → put in month_3_income, leave others as null
+- total_tax_withheld is the "Tax Withheld for the Quarter" value
+- All amounts should be numbers without commas`;
+
+function is2307(filename: string): boolean {
+  const name = filename.toLowerCase();
+  return name.includes("2307") || name.includes("bir") || name.includes("certificate") || name.includes("creditable");
+}
+
+async function callClaudeWithText(text: string, prompt?: string): Promise<any> {
   const message = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
     max_tokens: 2048,
     messages: [
       {
         role: "user",
-        content: `Extract all key information from this document content. Return a JSON object with fields like: document_type, date, amount, name, address, and any other relevant fields you find. Return only valid JSON, nothing else.\n\nDocument content:\n${text.slice(0, 8000)}`,
+        content: `${prompt || `Extract all key information from this document content. Return a JSON object with fields like: document_type, date, amount, name, address, and any other relevant fields you find. Return only valid JSON, nothing else.`}\n\nDocument content:\n${text.slice(0, 8000)}`,
       },
     ],
   });
@@ -106,6 +140,10 @@ export async function POST(request: NextRequest) {
     const isWord = ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"].includes(upload.file_type);
     const isText = upload.file_type === "text/plain";
 
+    // Detect if this is a BIR 2307
+    const use2307Prompt = is2307(upload.file_name || "");
+    const prompt = use2307Prompt ? BIR_2307_PROMPT : GENERIC_PROMPT;
+
     let finalMimeType = upload.file_type;
     let extractedText = "";
 
@@ -127,10 +165,7 @@ export async function POST(request: NextRequest) {
                 type: "image",
                 source: { type: "base64", media_type: finalMimeType as any, data: base64File },
               },
-              {
-                type: "text",
-                text: `Extract all key information from this document. Return a JSON object with fields like: document_type, date, amount, name, address, and any other relevant fields you find. Return only valid JSON, nothing else.`,
-              },
+              { type: "text", text: prompt },
             ],
           },
         ],
@@ -150,10 +185,7 @@ export async function POST(request: NextRequest) {
                 type: "document",
                 source: { type: "base64", media_type: "application/pdf", data: base64File },
               },
-              {
-                type: "text",
-                text: `Extract all key information from this document. Return a JSON object with fields like: document_type, date, amount, name, address, and any other relevant fields you find. Return only valid JSON, nothing else.`,
-              },
+              { type: "text", text: prompt },
             ],
           },
         ],
@@ -162,19 +194,19 @@ export async function POST(request: NextRequest) {
 
     } else if (isExcel) {
       const text = extractTextFromExcel(fileBuffer);
-      extractedText = await callClaudeWithText(text);
+      extractedText = await callClaudeWithText(text, prompt);
 
     } else if (isCsv) {
       const text = extractTextFromCsv(fileBuffer);
-      extractedText = await callClaudeWithText(text);
+      extractedText = await callClaudeWithText(text, prompt);
 
     } else if (isWord) {
       const text = await extractTextFromWord(fileBuffer);
-      extractedText = await callClaudeWithText(text);
+      extractedText = await callClaudeWithText(text, prompt);
 
     } else if (isText) {
       const text = fileBuffer.toString("utf-8");
-      extractedText = await callClaudeWithText(text);
+      extractedText = await callClaudeWithText(text, prompt);
 
     } else {
       return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
@@ -187,7 +219,6 @@ export async function POST(request: NextRequest) {
       extractedData = { raw: extractedText, parse_error: true };
     }
 
-    // Auto-save document_type to its own column
     const documentType = extractedData?.document_type || null;
 
     await supabase
