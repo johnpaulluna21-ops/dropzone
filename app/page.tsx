@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
@@ -7,6 +7,21 @@ export default function Home() {
   const [success, setSuccess] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<string[]>([]);
+  const [duplicates, setDuplicates] = useState<string[]>([]);
+
+  const checkDuplicates = async (fileList: File[]) => {
+    try {
+      const res = await fetch("/api/check-duplicates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fileNames: fileList.map(f => f.name) }),
+      });
+      const data = await res.json();
+      setDuplicates(data.duplicates || []);
+    } catch {
+      setDuplicates([]);
+    }
+  };
 
   const addFiles = (newFiles: FileList | null) => {
     if (!newFiles) return;
@@ -18,46 +33,59 @@ export default function Home() {
       else valid.push(f);
     });
     if (oversized.length > 0) alert(`These files exceed the 4.5MB limit and were skipped:\n\n${oversized.join("\n")}\n\nPlease compress or split them before uploading.`);
-    setFiles(prev => [...prev, ...valid]);
+    const updated = [...files, ...valid];
+    setFiles(updated);
+    checkDuplicates(updated);
   };
 
   const removeFile = (index: number) => {
-    setFiles(prev => prev.filter((_, i) => i !== index));
+    const updated = files.filter((_, i) => i !== index);
+    setFiles(updated);
+    checkDuplicates(updated);
+  };
+
+  const removeDuplicates = () => {
+    const updated = files.filter(f => !duplicates.includes(f.name));
+    setFiles(updated);
+    setDuplicates([]);
   };
 
   const handleUpload = async () => {
-  if (files.length === 0) return;
-  setUploading(true);
-  setProgress([]);
-  const results: string[] = new Array(files.length).fill("");
-  const BATCH_SIZE = 5;
+    if (files.length === 0) return;
+    setUploading(true);
+    setProgress([]);
+    const results: string[] = new Array(files.length).fill("");
+    const BATCH_SIZE = 5;
 
-  for (let i = 0; i < files.length; i += BATCH_SIZE) {
-    const batch = files.slice(i, i + BATCH_SIZE);
-    await Promise.all(batch.map(async (file, batchIdx) => {
-      const idx = i + batchIdx;
-      const formData = new FormData();
-      formData.append("file", file);
-      try {
-        const res = await fetch("/api/upload", { method: "POST", body: formData });
-        const data = await res.json();
-        results[idx] = data.success ? `✅ ${file.name}` : (data.error === "duplicate" || data.message?.includes("already")) ? `⚠️ ${file.name} — already uploaded, skipped` : `❌ ${file.name} — failed`;
-      } catch {
-        results[idx] = `❌ ${file.name} — error`;
-      }
-      setProgress([...results.filter(r => r !== "")]);
-    }));
-  }
+    for (let i = 0; i < files.length; i += BATCH_SIZE) {
+      const batch = files.slice(i, i + BATCH_SIZE);
+      await Promise.all(batch.map(async (file, batchIdx) => {
+        const idx = i + batchIdx;
+        const formData = new FormData();
+        formData.append("file", file);
+        try {
+          const res = await fetch("/api/upload", { method: "POST", body: formData });
+          const data = await res.json();
+          results[idx] = data.success ? `✅ ${file.name}` : (data.error === "duplicate" || data.message?.includes("already")) ? `⚠️ ${file.name} — already uploaded, skipped` : `❌ ${file.name} — failed`;
+        } catch {
+          results[idx] = `❌ ${file.name} — error`;
+        }
+        setProgress([...results.filter(r => r !== "")]);
+      }));
+    }
 
-  setUploading(false);
-  if (results.every(r => r.startsWith("✅"))) setSuccess(true);
-  setFiles([]);
-};
+    setUploading(false);
+    if (results.every(r => r.startsWith("✅") || r.startsWith("⚠️"))) setSuccess(true);
+    setFiles([]);
+    setDuplicates([]);
+  };
 
   const iconMap: Record<string, string> = {
     pdf: "📄", xlsx: "📊", xls: "📊", csv: "📊",
     docx: "📝", doc: "📝", png: "🖼️", jpg: "🖼️", jpeg: "🖼️",
   };
+
+  const hasDuplicates = files.some(f => duplicates.includes(f.name));
 
   return (
     <>
@@ -70,7 +98,6 @@ export default function Home() {
         @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
         @keyframes checkPop { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
-        @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
       `}</style>
 
       <main style={{
@@ -83,8 +110,6 @@ export default function Home() {
         justifyContent: "center",
         padding: "2rem 1.5rem",
         fontFamily: "'Inter', sans-serif",
-        position: "relative",
-        overflow: "hidden",
       }}>
 
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "2.5rem", animation: "fadeUp 0.5s ease both" }}>
@@ -112,7 +137,6 @@ export default function Home() {
               </div>
               <p style={{ fontSize: 18, fontWeight: 600, color: "#fff", marginBottom: 8, letterSpacing: "-0.3px" }}>Documents received</p>
               <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: "2rem", lineHeight: 1.6 }}>Your files are being processed. We&apos;ll extract and organize the data automatically.</p>
-
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: "2rem", textAlign: "left" }}>
                 {[
                   { icon: "ti-check", label: "Files uploaded", sub: "Stored securely in encrypted storage", color: "rgba(20,184,166,0.15)", textColor: "#14b8a6", done: true },
@@ -130,7 +154,6 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-
               <button onClick={() => { setSuccess(false); setProgress([]); }} style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
                 ← Submit more files
               </button>
@@ -172,17 +195,30 @@ export default function Home() {
                 </div>
               </div>
 
+              {/* Remove duplicates banner */}
+              {hasDuplicates && (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "rgba(245,158,11,0.08)", border: "0.5px solid rgba(245,158,11,0.25)", borderRadius: 12, marginBottom: "1rem" }}>
+                  <p style={{ fontSize: 12, color: "#fcd34d" }}>⚠️ {duplicates.length} duplicate file{duplicates.length > 1 ? "s" : ""} detected</p>
+                  <button onClick={removeDuplicates} style={{ fontSize: 12, color: "#fcd34d", background: "rgba(245,158,11,0.15)", border: "0.5px solid rgba(245,158,11,0.3)", borderRadius: 8, padding: "4px 10px", cursor: "pointer", fontFamily: "inherit" }}>
+                    Remove all
+                  </button>
+                </div>
+              )}
+
               {files.length > 0 && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: "1.25rem" }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: "1.25rem", maxHeight: 280, overflowY: "auto" }}>
                   {files.map((file, i) => {
                     const ext = file.name.split(".").pop()?.toLowerCase() || "";
                     const emoji = iconMap[ext] || "📄";
+                    const isDup = duplicates.includes(file.name);
                     return (
-                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: "rgba(255,255,255,0.04)", borderRadius: 12, border: "0.5px solid rgba(255,255,255,0.07)" }}>
+                      <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", background: isDup ? "rgba(245,158,11,0.06)" : "rgba(255,255,255,0.04)", borderRadius: 12, border: `0.5px solid ${isDup ? "rgba(245,158,11,0.2)" : "rgba(255,255,255,0.07)"}` }}>
                         <div style={{ width: 34, height: 34, background: "rgba(255,255,255,0.06)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, fontSize: 16 }}>{emoji}</div>
                         <div style={{ flex: 1, minWidth: 0 }}>
                           <p style={{ fontSize: 13, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{file.name}</p>
-                          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{(file.size / 1024).toFixed(1)} KB</p>
+                          <p style={{ fontSize: 11, color: isDup ? "#fcd34d" : "rgba(255,255,255,0.3)", marginTop: 2 }}>
+                            {isDup ? "⚠️ Already uploaded" : `${(file.size / 1024).toFixed(1)} KB`}
+                          </p>
                         </div>
                         <button onClick={() => removeFile(i)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.2)", fontSize: 18, cursor: "pointer", padding: "2px 4px" }}>×</button>
                       </div>
@@ -216,7 +252,7 @@ export default function Home() {
                   letterSpacing: "-0.1px",
                 }}
               >
-                {uploading ? `Uploading ${progress.length + 1} of ${files.length}...` : files.length > 0 ? `Submit ${files.length} document${files.length !== 1 ? "s" : ""} →` : "Submit documents"}
+                {uploading ? `Uploading...` : files.length > 0 ? `Submit ${files.length} document${files.length !== 1 ? "s" : ""} →` : "Submit documents"}
               </button>
             </>
           )}
