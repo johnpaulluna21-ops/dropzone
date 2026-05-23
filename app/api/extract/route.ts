@@ -60,17 +60,24 @@ async function extractTextFromWord(buffer: Buffer): Promise<string> {
 
 const GENERIC_PROMPT = `Extract all key information from this document. Return a JSON object with fields like: document_type, date, amount, name, address, and any other relevant fields you find. Return only valid JSON, nothing else.`;
 
-const BIR_2307_PROMPT = `This is a BIR Form 2307 (Certificate of Creditable Tax Withheld at Source). Extract the following fields precisely and return only valid JSON, nothing else:
+const BIR_2307_PROMPT = `This is a BIR Form 2307 (Certificate of Creditable Tax Withheld at Source). Extract the following fields precisely and return only valid JSON, nothing else.
+
+CRITICAL TIN EXTRACTION RULES:
+- TIN format is always: XXX-XXX-XXX-XXXXX (with trailing branch code digits)
+- The last segment after the 3rd dash contains 4-5 digits (e.g. 0000, 00000)
+- NEVER truncate the TIN - extract ALL digits including trailing zeros
+- Example: if you see "760-570-253-0000" extract exactly "760-570-253-0000"
+- Example: if you see "629-449-549-0000" extract exactly "629-449-549-0000"
 
 {
   "document_type": "BIR Form 2307",
   "period_from": "(MM/DD/YYYY)",
   "period_to": "(MM/DD/YYYY)",
   "payee_name": "",
-  "payee_tin": "",
+  "payee_tin": "(extract full TIN including all trailing zeros)",
   "payee_address": "",
   "payor_name": "",
-  "payor_tin": "",
+  "payor_tin": "(extract full TIN including all trailing zeros)",
   "payor_address": "",
   "atc": "",
   "month_1_income": null,
@@ -80,10 +87,10 @@ const BIR_2307_PROMPT = `This is a BIR Form 2307 (Certificate of Creditable Tax 
   "total_tax_withheld": null
 }
 
-IMPORTANT: The income amount appears in only ONE of the three month columns depending on which month it covers:
-- If amount is in "1st Month of the Quarter" column → put in month_1_income, leave month_2_income and month_3_income as null
-- If amount is in "2nd Month of the Quarter" column → put in month_2_income, leave others as null  
-- If amount is in "3rd Month of the Quarter" column → put in month_3_income, leave others as null
+IMPORTANT: The income amount appears in only ONE of the three month columns:
+- If amount is in "1st Month of the Quarter" column → put in month_1_income, leave others null
+- If amount is in "2nd Month of the Quarter" column → put in month_2_income, leave others null
+- If amount is in "3rd Month of the Quarter" column → put in month_3_income, leave others null
 - total_tax_withheld is the "Tax Withheld for the Quarter" value
 - All amounts should be numbers without commas`;
 
@@ -140,7 +147,6 @@ export async function POST(request: NextRequest) {
     const isWord = ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"].includes(upload.file_type);
     const isText = upload.file_type === "text/plain";
 
-    // Detect if this is a BIR 2307
     const use2307Prompt = is2307(upload.file_name || "");
     const prompt = use2307Prompt ? BIR_2307_PROMPT : GENERIC_PROMPT;
 
@@ -221,31 +227,31 @@ export async function POST(request: NextRequest) {
 
     const documentType = extractedData?.document_type || null;
 
-await supabase
-  .from("uploads")
-  .update({
-    extracted_data: extractedData,
-    extracted_at: new Date().toISOString(),
-    status: "extracted",
-    ...(documentType && { document_type: documentType }),
-  })
-  .eq("id", uploadId);
+    await supabase
+      .from("uploads")
+      .update({
+        extracted_data: extractedData,
+        extracted_at: new Date().toISOString(),
+        status: "extracted",
+        ...(documentType && { document_type: documentType }),
+      })
+      .eq("id", uploadId);
 
-// Auto-create client from 2307
-if (use2307Prompt && extractedData?.payee_tin && extractedData?.payee_name) {
-  const cleanTin = extractedData.payee_tin.replace(/\s/g, "");
-  const { data: existing } = await supabase
-    .from("clients")
-    .select("id")
-    .eq("tin", cleanTin)
-    .single();
-  if (!existing) {
-    await supabase.from("clients").insert({
-      name: extractedData.payee_name,
-      tin: cleanTin,
-    });
-  }
-}
+    // Auto-create client from 2307
+    if (use2307Prompt && extractedData?.payee_tin && extractedData?.payee_name) {
+      const cleanTin = extractedData.payee_tin.replace(/\s/g, "");
+      const { data: existing } = await supabase
+        .from("clients")
+        .select("id")
+        .eq("tin", cleanTin)
+        .single();
+      if (!existing) {
+        await supabase.from("clients").insert({
+          name: extractedData.payee_name,
+          tin: cleanTin,
+        });
+      }
+    }
 
     return NextResponse.json({ success: true, data: extractedData });
   } catch (error) {
