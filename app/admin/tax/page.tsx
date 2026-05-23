@@ -28,10 +28,9 @@ export default function TaxPage() {
   const [search, setSearch] = useState("");
   const [listOpen, setListOpen] = useState(false);
   const [page, setPage] = useState(1);
+  const [activeQuarter, setActiveQuarter] = useState("Q1");
 
   useEffect(() => { fetchClients(); }, []);
-
-  // Reset to page 1 when search changes
   useEffect(() => { setPage(1); }, [search]);
 
   const fetchClients = async () => {
@@ -55,11 +54,8 @@ export default function TaxPage() {
     if (editCredit) {
       const creditYearInt = parseInt(editCreditYear) || new Date().getFullYear() - 1;
       const { data: existing } = await supabase
-        .from("prior_year_credits")
-        .select("id")
-        .eq("client_id", editingClient.id)
-        .eq("year", creditYearInt)
-        .single();
+        .from("prior_year_credits").select("id")
+        .eq("client_id", editingClient.id).eq("year", creditYearInt).single();
       if (existing) {
         await supabase.from("prior_year_credits").update({ excess_credit: parseFloat(editCredit) || 0 }).eq("id", existing.id);
       } else {
@@ -74,12 +70,10 @@ export default function TaxPage() {
   const computeSummary = async (client: any) => {
     setSelected(client);
     setListOpen(false);
+    setActiveQuarter("Q1");
     setLoading(true);
     try {
-      const { data: uploads } = await supabase
-        .from("uploads")
-        .select("*")
-        .eq("status", "extracted");
+      const { data: uploads } = await supabase.from("uploads").select("*").eq("status", "extracted");
 
       const forms2307 = (uploads || []).filter(u => {
         const data = parseData(u.extracted_data);
@@ -87,18 +81,12 @@ export default function TaxPage() {
                data?.payee_name?.toLowerCase().includes(client.name.toLowerCase());
       });
 
-      const { data: credits } = await supabase
-        .from("prior_year_credits")
-        .select("*")
-        .eq("client_id", client.id)
-        .eq("year", parseInt(year) - 1);
+      const { data: credits } = await supabase.from("prior_year_credits").select("*")
+        .eq("client_id", client.id).eq("year", parseInt(year) - 1);
       const priorCredit = credits?.reduce((sum: number, c: any) => sum + (c.excess_credit || 0), 0) || 0;
 
-      const { data: payments } = await supabase
-        .from("tax_payments")
-        .select("*")
-        .eq("client_id", client.id)
-        .eq("year", parseInt(year));
+      const { data: payments } = await supabase.from("tax_payments").select("*")
+        .eq("client_id", client.id).eq("year", parseInt(year));
 
       const quarters: any = { Q1: [], Q2: [], Q3: [], Q4: [] };
       forms2307.forEach(u => {
@@ -119,10 +107,7 @@ export default function TaxPage() {
 
       for (const [q, forms] of Object.entries(quarters) as any) {
         const qNum = parseInt(q.replace("Q", ""));
-        const item47 = forms.reduce((sum: number, f: any) => {
-          const val = String(f?.total_income || "0").replace(/,/g, "");
-          return sum + (parseFloat(val) || 0);
-        }, 0);
+        const item47 = forms.reduce((sum: number, f: any) => sum + (parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0), 0);
         const item49 = item47;
         const item50 = cumulativeIncome;
         const item51 = item49 + item50;
@@ -132,10 +117,7 @@ export default function TaxPage() {
         const item55 = qNum === 1 ? priorCredit : 0;
         const item56 = previousPaid;
         const item57 = cumulativeCWT;
-        const item58 = forms.reduce((sum: number, f: any) => {
-          const val = String(f?.total_tax_withheld || "0").replace(/,/g, "");
-          return sum + (parseFloat(val) || 0);
-        }, 0);
+        const item58 = forms.reduce((sum: number, f: any) => sum + (parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0), 0);
         const item62 = item55 + item56 + item57 + item58;
         const item63 = item54 - item62;
         const qPayment = payments?.find((p: any) => p.quarter === qNum)?.amount_paid || 0;
@@ -179,6 +161,8 @@ export default function TaxPage() {
   const pagedClients = filteredClients.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   const showList = listOpen || search.length > 0;
 
+  const activeQ = summary?.quarters.find((q: any) => q.quarter === activeQuarter);
+
   return (
     <>
       <style suppressHydrationWarning>{`
@@ -188,7 +172,6 @@ export default function TaxPage() {
         body { font-family: 'Inter', sans-serif; background: #0f0f0f; }
         input, select { outline: none; }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
-        @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
       `}</style>
 
       <main style={{ minHeight: "100vh", background: "#0f0f0f", backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%)", padding: "2rem 1.5rem", fontFamily: "'Inter', sans-serif" }}>
@@ -220,8 +203,6 @@ export default function TaxPage() {
 
             {/* Clients Panel */}
             <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", alignSelf: "start" }}>
-
-              {/* Header */}
               <div style={{ padding: "16px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Clients ({clients.length})</p>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -234,7 +215,6 @@ export default function TaxPage() {
                 </div>
               </div>
 
-              {/* Selected client chip */}
               {selected && !showList && (
                 <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(99,102,241,0.08)" }}>
                   <div style={{ minWidth: 0 }}>
@@ -247,7 +227,6 @@ export default function TaxPage() {
                 </div>
               )}
 
-              {/* Search */}
               <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
                 <input
                   placeholder="Search name or TIN..."
@@ -257,7 +236,6 @@ export default function TaxPage() {
                 />
               </div>
 
-              {/* Add Client Form */}
               {showAddClient && (
                 <div style={{ padding: "12px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", background: "rgba(99,102,241,0.04)" }}>
                   <input placeholder="Full name *" value={newName} onChange={e => setNewName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
@@ -270,7 +248,6 @@ export default function TaxPage() {
                 </div>
               )}
 
-              {/* Client List — only shown when open */}
               {showList && (
                 <div>
                   {pagedClients.length === 0 ? (
@@ -301,17 +278,11 @@ export default function TaxPage() {
                       )}
                     </div>
                   ))}
-
-                  {/* Pagination */}
                   {totalPages > 1 && (
                     <div style={{ padding: "10px 16px", borderTop: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-                      <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: page === 1 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: page === 1 ? "default" : "pointer", fontFamily: "inherit" }}>
-                        ‹ Prev
-                      </button>
+                      <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: page === 1 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: page === 1 ? "default" : "pointer", fontFamily: "inherit" }}>‹ Prev</button>
                       <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{page} / {totalPages}</span>
-                      <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: page === totalPages ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: page === totalPages ? "default" : "pointer", fontFamily: "inherit" }}>
-                        Next ›
-                      </button>
+                      <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: page === totalPages ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: page === totalPages ? "default" : "pointer", fontFamily: "inherit" }}>Next ›</button>
                     </div>
                   )}
                 </div>
@@ -326,6 +297,7 @@ export default function TaxPage() {
                 </div>
               ) : summary ? (
                 <>
+                  {/* Client header */}
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", paddingBottom: "1rem", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}>
                     <div>
                       <h2 style={{ fontSize: 16, fontWeight: 600, color: "#fff" }}>{summary.client.name}</h2>
@@ -338,84 +310,110 @@ export default function TaxPage() {
                     )}
                   </div>
 
-                  {/* Quarter Cards */}
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 12, marginBottom: "1.5rem" }}>
-                    {summary.quarters.map((q: any) => (
-                      <div key={q.quarter} style={{ padding: "16px", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14 }}>
-                        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 12 }}>
-                          <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{q.quarter} {year}</p>
-                          <span style={{ fontSize: 11, padding: "3px 8px", borderRadius: 20, background: q.forms > 0 ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.05)", color: q.forms > 0 ? "#6ee7b7" : "rgba(255,255,255,0.3)", border: `0.5px solid ${q.forms > 0 ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.08)"}` }}>
+                  {/* Quarter Tabs */}
+                  <div style={{ display: "flex", gap: 6, marginBottom: "1.25rem" }}>
+                    {summary.quarters.map((q: any) => {
+                      const isActive = activeQuarter === q.quarter;
+                      return (
+                        <button
+                          key={q.quarter}
+                          onClick={() => setActiveQuarter(q.quarter)}
+                          style={{
+                            flex: 1, padding: "10px 8px", borderRadius: 12, cursor: "pointer", fontFamily: "inherit",
+                            background: isActive ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.04)",
+                            border: isActive ? "none" : "0.5px solid rgba(255,255,255,0.08)",
+                            transition: "all 0.15s",
+                          }}
+                        >
+                          <p style={{ fontSize: 13, fontWeight: 600, color: isActive ? "#fff" : "rgba(255,255,255,0.4)", marginBottom: 4 }}>{q.quarter}</p>
+                          <p style={{ fontSize: 11, color: isActive ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)" }}>
                             {q.forms} 2307{q.forms !== 1 ? "s" : ""}
-                          </span>
-                        </div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 6, textTransform: "uppercase" }}>Schedule II — Income</p>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>47 · Quarterly Income</span>
-                            <span style={{ fontSize: 11, color: "#fff" }}>{fmt(q.item47)}</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>50 · Add: Prev Quarters</span>
-                            <span style={{ fontSize: 11, color: "#fff" }}>{fmt(q.item50)}</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>51 · Cumulative Income</span>
-                            <span style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{fmt(q.item51)}</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>52 · Less: ₱250,000</span>
-                            <span style={{ fontSize: 11, color: "#6ee7b7" }}>({fmt(q.item52)})</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>53 · Taxable Income</span>
-                            <span style={{ fontSize: 11, color: q.item53 < 0 ? "#fca5a5" : "#fff" }}>{q.item53 < 0 ? `(${fmt(q.item53)})` : fmt(q.item53)}</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>54 · Tax Due (8%)</span>
-                            <span style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{fmt(q.item54)}</span>
-                          </div>
-                        </div>
-                        <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 6, textTransform: "uppercase" }}>Schedule III — Credits</p>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
-                          {q.item55 > 0 && (
-                            <div style={{ display: "flex", justifyContent: "space-between" }}>
-                              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>55 · Prior Year Credits</span>
-                              <span style={{ fontSize: 11, color: "#6ee7b7" }}>({fmt(q.item55)})</span>
-                            </div>
-                          )}
-                          {q.item56 > 0 && (
-                            <div style={{ display: "flex", justifyContent: "space-between" }}>
-                              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>56 · Prev Qtr Payments</span>
-                              <span style={{ fontSize: 11, color: "#6ee7b7" }}>({fmt(q.item56)})</span>
-                            </div>
-                          )}
-                          {q.item57 > 0 && (
-                            <div style={{ display: "flex", justifyContent: "space-between" }}>
-                              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>57 · CWT Prev Quarters</span>
-                              <span style={{ fontSize: 11, color: "#6ee7b7" }}>({fmt(q.item57)})</span>
-                            </div>
-                          )}
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>58 · CWT This Quarter</span>
-                            <span style={{ fontSize: 11, color: "#6ee7b7" }}>({fmt(q.item58)})</span>
-                          </div>
-                          <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>62 · Total Credits</span>
-                            <span style={{ fontSize: 11, color: "#6ee7b7", fontWeight: 600 }}>({fmt(q.item62)})</span>
+                          </p>
+                          <p style={{ fontSize: 11, fontWeight: 600, color: q.isOverpayment ? "#6ee7b7" : (isActive ? "#fcd34d" : "rgba(252,211,77,0.5)"), marginTop: 4 }}>
+                            {q.isOverpayment ? "Overpaid" : fmt(q.item63)}
+                          </p>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Active Quarter Detail */}
+                  {activeQ && (
+                    <div style={{ padding: "20px", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 16, marginBottom: "1.5rem" }}>
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+                        <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{activeQ.quarter} {year} — Detail</p>
+                        <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: activeQ.forms > 0 ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.05)", color: activeQ.forms > 0 ? "#6ee7b7" : "rgba(255,255,255,0.3)", border: `0.5px solid ${activeQ.forms > 0 ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.08)"}` }}>
+                          {activeQ.forms} 2307{activeQ.forms !== 1 ? "s" : ""}
+                        </span>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                        {/* Schedule II */}
+                        <div>
+                          <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 10, textTransform: "uppercase" }}>Schedule II — Income</p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {[
+                              { label: "47 · Quarterly Income", value: fmt(activeQ.item47), color: "#fff" },
+                              { label: "50 · Add: Prev Quarters", value: fmt(activeQ.item50), color: "#fff" },
+                              { label: "51 · Cumulative Income", value: fmt(activeQ.item51), color: "#fff", bold: true },
+                              { label: "52 · Less: ₱250,000", value: `(${fmt(activeQ.item52)})`, color: "#6ee7b7" },
+                              { label: "53 · Taxable Income", value: activeQ.item53 < 0 ? `(${fmt(activeQ.item53)})` : fmt(activeQ.item53), color: activeQ.item53 < 0 ? "#fca5a5" : "#fff", bold: true },
+                              { label: "54 · Tax Due (8%)", value: fmt(activeQ.item54), color: "#a5b4fc", bold: true },
+                            ].map(row => (
+                              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{row.label}</span>
+                                <span style={{ fontSize: 12, color: row.color, fontWeight: row.bold ? 600 : 400 }}>{row.value}</span>
+                              </div>
+                            ))}
                           </div>
                         </div>
-                        <div style={{ height: "0.5px", background: "rgba(255,255,255,0.08)", margin: "8px 0" }} />
-                        <div style={{ display: "flex", justifyContent: "space-between" }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: q.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
-                            63 · {q.isOverpayment ? "Overpayment" : "Tax Payable"}
-                          </span>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: q.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
-                            {q.isOverpayment ? `(${fmt(q.item63)})` : fmt(q.item63)}
-                          </span>
+
+                        {/* Schedule III */}
+                        <div>
+                          <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 10, textTransform: "uppercase" }}>Schedule III — Credits</p>
+                          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                            {activeQ.item55 > 0 && (
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>55 · Prior Year Credits</span>
+                                <span style={{ fontSize: 12, color: "#6ee7b7" }}>({fmt(activeQ.item55)})</span>
+                              </div>
+                            )}
+                            {activeQ.item56 > 0 && (
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>56 · Prev Qtr Payments</span>
+                                <span style={{ fontSize: 12, color: "#6ee7b7" }}>({fmt(activeQ.item56)})</span>
+                              </div>
+                            )}
+                            {activeQ.item57 > 0 && (
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>57 · CWT Prev Quarters</span>
+                                <span style={{ fontSize: 12, color: "#6ee7b7" }}>({fmt(activeQ.item57)})</span>
+                              </div>
+                            )}
+                            {[
+                              { label: "58 · CWT This Quarter", value: `(${fmt(activeQ.item58)})`, color: "#6ee7b7" },
+                              { label: "62 · Total Credits", value: `(${fmt(activeQ.item62)})`, color: "#6ee7b7", bold: true },
+                            ].map(row => (
+                              <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{row.label}</span>
+                                <span style={{ fontSize: 12, color: row.color, fontWeight: row.bold ? 600 : 400 }}>{row.value}</span>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* Tax Payable */}
+                          <div style={{ marginTop: 16, padding: "14px 16px", background: activeQ.isOverpayment ? "rgba(16,185,129,0.08)" : "rgba(252,211,77,0.06)", border: `0.5px solid ${activeQ.isOverpayment ? "rgba(16,185,129,0.25)" : "rgba(252,211,77,0.2)"}`, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: 14, fontWeight: 700, color: activeQ.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
+                              63 · {activeQ.isOverpayment ? "Overpayment" : "Tax Payable"}
+                            </span>
+                            <span style={{ fontSize: 16, fontWeight: 700, color: activeQ.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
+                              {activeQ.isOverpayment ? `(${fmt(activeQ.item63)})` : fmt(activeQ.item63)}
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
 
                   {/* Annual Summary */}
                   <div style={{ padding: "16px", background: "rgba(99,102,241,0.06)", border: "0.5px solid rgba(99,102,241,0.2)", borderRadius: 14 }}>
