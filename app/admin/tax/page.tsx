@@ -93,7 +93,10 @@ export default function TaxPage() {
         const qNum = parseInt(q.replace("Q", ""));
 
         // Item 47 - quarterly income from 2307s
-        const item47 = forms.reduce((sum: number, f: any) => sum + (parseFloat(f?.total_income) || 0), 0);
+        const item47 = forms.reduce((sum: number, f: any) => {
+  const val = String(f?.total_income || "0").replace(/,/g, "");
+  return sum + (parseFloat(val) || 0);
+}, 0);
         // Item 48 - non-operating income (0 for now)
         const item48 = 0;
         // Item 49 - total income this quarter
@@ -116,7 +119,10 @@ export default function TaxPage() {
         // Item 57 - CWT from 2307s PREVIOUS quarters
         const item57 = cumulativeCWT;
         // Item 58 - CWT from 2307s THIS quarter
-        const item58 = forms.reduce((sum: number, f: any) => sum + (parseFloat(f?.total_tax_withheld) || 0), 0);
+        const item58 = forms.reduce((sum: number, f: any) => {
+  const val = String(f?.total_tax_withheld || "0").replace(/,/g, "");
+  return sum + (parseFloat(val) || 0);
+}, 0);
         // Item 62 - total credits
         const item62 = item55 + item56 + item57 + item58;
         // Item 63 - tax payable (negative = overpayment)
