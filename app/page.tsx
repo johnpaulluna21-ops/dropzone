@@ -8,10 +8,18 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<string[]>([]);
 
-  const addFiles = (newFiles: FileList | null) => {
-    if (!newFiles) return;
-    setFiles(prev => [...prev, ...Array.from(newFiles)]);
-  };
+ const addFiles = (newFiles: FileList | null) => {
+  if (!newFiles) return;
+  const MAX_SIZE = 50 * 1024 * 1024; // 50MB
+  const oversized: string[] = [];
+  const valid: File[] = [];
+  Array.from(newFiles).forEach(f => {
+    if (f.size > MAX_SIZE) oversized.push(f.name);
+    else valid.push(f);
+  });
+  if (oversized.length > 0) alert(`These files exceed the 50MB limit and were skipped:\n${oversized.join("\n")}`);
+  setFiles(prev => [...prev, ...valid]);
+};
 
   const removeFile = (index: number) => {
     setFiles(prev => prev.filter((_, i) => i !== index));

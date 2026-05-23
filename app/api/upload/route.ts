@@ -63,4 +63,10 @@ export async function POST(request: NextRequest) {
     console.error("UPLOAD ERROR:", error);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
   }
-}
+}export const config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "50mb",
+    },
+  },
+};
