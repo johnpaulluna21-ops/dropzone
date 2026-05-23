@@ -43,7 +43,6 @@ export default function TaxPage() {
     setSelected(client);
     setLoading(true);
     try {
-      // Fetch all 2307s for this client by TIN match
       const { data: uploads } = await supabase
         .from("uploads")
         .select("*")
@@ -55,7 +54,7 @@ export default function TaxPage() {
                data?.payee_name?.toLowerCase().includes(client.name.toLowerCase());
       });
 
-      // Fetch prior year credits
+      // Fetch prior year credits (Item 55)
       const { data: credits } = await supabase
         .from("prior_year_credits")
         .select("*")
@@ -63,7 +62,7 @@ export default function TaxPage() {
         .eq("year", parseInt(year) - 1);
       const priorCredit = credits?.reduce((sum: number, c: any) => sum + (c.excess_credit || 0), 0) || 0;
 
-      // Fetch tax payments
+      // Fetch tax payments per quarter (Item 56)
       const { data: payments } = await supabase
         .from("tax_payments")
         .select("*")
@@ -82,33 +81,75 @@ export default function TaxPage() {
         else if (month >= 10 && month <= 12) quarters.Q4.push(data);
       });
 
-      // Compute per quarter
-      let cumulativeIncome = 0;
-      let cumulativeCWT = 0;
-      let previousPaid = 0;
+      // Compute per quarter following exact BIR 1701Q Schedule II & III logic
+      let cumulativeIncome = 0;       // Item 51 - running total
+      let cumulativeCWT = 0;          // Items 57+58 - running CWT total
+      let previousPaid = 0;           // Item 56 - tax paid previous quarters
+      const EXEMPTION = 250000;       // Item 52 - fixed ₱250,000
+
       const qSummaries = [];
 
       for (const [q, forms] of Object.entries(quarters) as any) {
-        const qIncome = forms.reduce((sum: number, f: any) => sum + (parseFloat(f?.total_income) || 0), 0);
-        const qCWT = forms.reduce((sum: number, f: any) => sum + (parseFloat(f?.total_tax_withheld) || 0), 0);
-        cumulativeIncome += qIncome;
-        cumulativeCWT += qCWT;
-        const taxDue = Math.max(0, (cumulativeIncome - 250000) * 0.08);
-        const qPayment = payments?.find((p: any) => p.quarter === parseInt(q.replace("Q", "")))?.amount_paid || 0;
-        const balanceDue = taxDue - cumulativeCWT - previousPaid - (q === "Q1" ? priorCredit : 0);
+        const qNum = parseInt(q.replace("Q", ""));
+
+        // Item 47 - quarterly income from 2307s
+        const item47 = forms.reduce((sum: number, f: any) => sum + (parseFloat(f?.total_income) || 0), 0);
+        // Item 48 - non-operating income (0 for now)
+        const item48 = 0;
+        // Item 49 - total income this quarter
+        const item49 = item47 + item48;
+        // Item 50 - cumulative income from previous quarters
+        const item50 = cumulativeIncome;
+        // Item 51 - cumulative income to date
+        const item51 = item49 + item50;
+        // Item 52 - less ₱250,000 exemption
+        const item52 = EXEMPTION;
+        // Item 53 - taxable income to date (can be negative)
+        const item53 = item51 - item52;
+        // Item 54 - tax due (min 0)
+        const item54 = Math.max(0, item53 * 0.08);
+
+        // Item 55 - prior year excess credits (only Q1)
+        const item55 = qNum === 1 ? priorCredit : 0;
+        // Item 56 - tax payments previous quarters
+        const item56 = previousPaid;
+        // Item 57 - CWT from 2307s PREVIOUS quarters
+        const item57 = cumulativeCWT;
+        // Item 58 - CWT from 2307s THIS quarter
+        const item58 = forms.reduce((sum: number, f: any) => sum + (parseFloat(f?.total_tax_withheld) || 0), 0);
+        // Item 62 - total credits
+        const item62 = item55 + item56 + item57 + item58;
+        // Item 63 - tax payable (negative = overpayment)
+        const item63 = item54 - item62;
+
+        // Get payment made for this quarter
+        const qPayment = payments?.find((p: any) => p.quarter === qNum)?.amount_paid || 0;
+
         qSummaries.push({
           quarter: q,
           forms: forms.length,
-          quarterlyIncome: qIncome,
-          cumulativeIncome,
-          cumulativeCWT,
-          taxDue,
-          previousPaid,
-          priorCredit: q === "Q1" ? priorCredit : 0,
-          balanceDue: Math.max(0, balanceDue),
-          overpayment: balanceDue < 0 ? Math.abs(balanceDue) : 0,
+          // Schedule II
+          item47,  // quarterly income
+          item49,  // total income this quarter
+          item50,  // prev cumulative
+          item51,  // cumulative to date
+          item52,  // exemption
+          item53,  // taxable income (can be negative)
+          item54,  // tax due
+          // Schedule III
+          item55,  // prior year credits
+          item56,  // prev quarter payments
+          item57,  // prev quarter CWT
+          item58,  // this quarter CWT
+          item62,  // total credits
+          item63,  // tax payable
           paid: qPayment,
+          isOverpayment: item63 < 0,
         });
+
+        // Update running totals for next quarter
+        cumulativeIncome = item51;
+        cumulativeCWT += item58;
         previousPaid += qPayment;
       }
 
@@ -129,7 +170,7 @@ export default function TaxPage() {
     } catch { return data; }
   };
 
-  const fmt = (n: number) => `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const fmt = (n: number) => `₱${Math.abs(n).toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
   return (
     <>
@@ -182,7 +223,7 @@ export default function TaxPage() {
               {showAddClient && (
                 <div style={{ padding: "12px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", background: "rgba(99,102,241,0.04)" }}>
                   <input placeholder="Full name *" value={newName} onChange={e => setNewName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
-                  <input placeholder="TIN (e.g. 123-456-789)" value={newTin} onChange={e => setNewTin(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
+                  <input placeholder="TIN (e.g. 123-456-789-0000)" value={newTin} onChange={e => setNewTin(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
                   <input placeholder="Prior year excess credit (₱)" value={newCredit} onChange={e => setNewCredit(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
                   <input placeholder="Credit from year (e.g. 2024)" value={creditYear} onChange={e => setCreditYear(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
                   <button onClick={addClient} style={{ width: "100%", padding: "8px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
@@ -204,7 +245,7 @@ export default function TaxPage() {
             </div>
 
             {/* Summary Panel */}
-            <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem" }}>
+            <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem", overflowY: "auto" }}>
               {loading ? (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
                   <i className="ti ti-loader-2" style={{ fontSize: 20, marginRight: 8 }} /> Computing summary...
@@ -233,44 +274,75 @@ export default function TaxPage() {
                             {q.forms} 2307{q.forms !== 1 ? "s" : ""}
                           </span>
                         </div>
-                        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+
+                        {/* Schedule II */}
+                        <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 6, textTransform: "uppercase" }}>Schedule II — Income</p>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Quarterly Income</span>
-                            <span style={{ fontSize: 12, color: "#fff" }}>{fmt(q.quarterlyIncome)}</span>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>47 · Quarterly Income</span>
+                            <span style={{ fontSize: 11, color: "#fff" }}>{fmt(q.item47)}</span>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Cumulative Income</span>
-                            <span style={{ fontSize: 12, color: "#fff" }}>{fmt(q.cumulativeIncome)}</span>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>50 · Add: Prev Quarters</span>
+                            <span style={{ fontSize: 11, color: "#fff" }}>{fmt(q.item50)}</span>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Tax Due (8%)</span>
-                            <span style={{ fontSize: 12, color: "#fff" }}>{fmt(q.taxDue)}</span>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>51 · Cumulative Income</span>
+                            <span style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{fmt(q.item51)}</span>
                           </div>
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Less: CWT (2307s)</span>
-                            <span style={{ fontSize: 12, color: "#6ee7b7" }}>({fmt(q.cumulativeCWT)})</span>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>52 · Less: ₱250,000</span>
+                            <span style={{ fontSize: 11, color: "#6ee7b7" }}>({fmt(q.item52)})</span>
                           </div>
-                          {q.priorCredit > 0 && (
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>53 · Taxable Income</span>
+                            <span style={{ fontSize: 11, color: q.item53 < 0 ? "#fca5a5" : "#fff" }}>{q.item53 < 0 ? `(${fmt(q.item53)})` : fmt(q.item53)}</span>
+                          </div>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>54 · Tax Due (8%)</span>
+                            <span style={{ fontSize: 11, color: "#fff", fontWeight: 600 }}>{fmt(q.item54)}</span>
+                          </div>
+                        </div>
+
+                        {/* Schedule III */}
+                        <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 6, textTransform: "uppercase" }}>Schedule III — Credits</p>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 5, marginBottom: 10 }}>
+                          {q.item55 > 0 && (
                             <div style={{ display: "flex", justifyContent: "space-between" }}>
-                              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Less: Prior Year Credit</span>
-                              <span style={{ fontSize: 12, color: "#6ee7b7" }}>({fmt(q.priorCredit)})</span>
+                              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>55 · Prior Year Credits</span>
+                              <span style={{ fontSize: 11, color: "#6ee7b7" }}>({fmt(q.item55)})</span>
                             </div>
                           )}
-                          {q.previousPaid > 0 && (
+                          {q.item56 > 0 && (
                             <div style={{ display: "flex", justifyContent: "space-between" }}>
-                              <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Less: Prev Qtrs Paid</span>
-                              <span style={{ fontSize: 12, color: "#6ee7b7" }}>({fmt(q.previousPaid)})</span>
+                              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>56 · Prev Qtr Payments</span>
+                              <span style={{ fontSize: 11, color: "#6ee7b7" }}>({fmt(q.item56)})</span>
                             </div>
                           )}
-                          <div style={{ height: "0.5px", background: "rgba(255,255,255,0.08)", margin: "4px 0" }} />
+                          {q.item57 > 0 && (
+                            <div style={{ display: "flex", justifyContent: "space-between" }}>
+                              <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>57 · CWT Prev Quarters</span>
+                              <span style={{ fontSize: 11, color: "#6ee7b7" }}>({fmt(q.item57)})</span>
+                            </div>
+                          )}
                           <div style={{ display: "flex", justifyContent: "space-between" }}>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: q.balanceDue > 0 ? "#fcd34d" : "#6ee7b7" }}>
-                              {q.balanceDue > 0 ? "Balance Due" : "Overpayment"}
-                            </span>
-                            <span style={{ fontSize: 13, fontWeight: 600, color: q.balanceDue > 0 ? "#fcd34d" : "#6ee7b7" }}>
-                              {q.balanceDue > 0 ? fmt(q.balanceDue) : fmt(q.overpayment)}
-                            </span>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>58 · CWT This Quarter</span>
+                            <span style={{ fontSize: 11, color: "#6ee7b7" }}>({fmt(q.item58)})</span>
                           </div>
+                          <div style={{ display: "flex", justifyContent: "space-between" }}>
+                            <span style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>62 · Total Credits</span>
+                            <span style={{ fontSize: 11, color: "#6ee7b7", fontWeight: 600 }}>({fmt(q.item62)})</span>
+                          </div>
+                        </div>
+
+                        <div style={{ height: "0.5px", background: "rgba(255,255,255,0.08)", margin: "8px 0" }} />
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: q.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
+                            63 · {q.isOverpayment ? "Overpayment" : "Tax Payable"}
+                          </span>
+                          <span style={{ fontSize: 13, fontWeight: 700, color: q.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>
+                            {q.isOverpayment ? `(${fmt(q.item63)})` : fmt(q.item63)}
+                          </span>
                         </div>
                       </div>
                     ))}
@@ -279,18 +351,24 @@ export default function TaxPage() {
                   {/* Annual Summary */}
                   <div style={{ padding: "16px", background: "rgba(99,102,241,0.06)", border: "0.5px solid rgba(99,102,241,0.2)", borderRadius: 14 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Annual Summary {year}</p>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 12 }}>
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
                       <div>
                         <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Total Income</p>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>{fmt(summary.quarters[summary.quarters.length - 1]?.cumulativeIncome || 0)}</p>
+                        <p style={{ fontSize: 15, fontWeight: 700, color: "#fff" }}>{fmt(summary.quarters[summary.quarters.length - 1]?.item51 || 0)}</p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Taxable Income</p>
+                        <p style={{ fontSize: 15, fontWeight: 700, color: summary.quarters[summary.quarters.length - 1]?.item53 < 0 ? "#fca5a5" : "#fff" }}>
+                          {fmt(summary.quarters[summary.quarters.length - 1]?.item53 || 0)}
+                        </p>
+                      </div>
+                      <div>
+                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Annual Tax Due</p>
+                        <p style={{ fontSize: 15, fontWeight: 700, color: "#a5b4fc" }}>{fmt(summary.quarters[summary.quarters.length - 1]?.item54 || 0)}</p>
                       </div>
                       <div>
                         <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Total CWT</p>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: "#6ee7b7" }}>{fmt(summary.quarters[summary.quarters.length - 1]?.cumulativeCWT || 0)}</p>
-                      </div>
-                      <div>
-                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Annual Tax Due (8%)</p>
-                        <p style={{ fontSize: 16, fontWeight: 700, color: "#a5b4fc" }}>{fmt((summary.quarters[summary.quarters.length - 1]?.cumulativeIncome || 0) * 0.08)}</p>
+                        <p style={{ fontSize: 15, fontWeight: 700, color: "#6ee7b7" }}>{fmt(summary.quarters[summary.quarters.length - 1]?.item62 || 0)}</p>
                       </div>
                     </div>
                   </div>
