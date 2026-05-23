@@ -37,14 +37,14 @@ export default function AdminPage() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-  const fetchUploads = async () => {
-    const { data } = await supabase
-      .from("uploads")
-      .select("*")
-      .order("created_at", { ascending: false });
-    setUploads(data || []);
-  };
-
+ const fetchUploads = async () => {
+  const { data } = await supabase
+    .from("uploads")
+    .select("*")
+    .order("status", { ascending: true })
+    .order("created_at", { ascending: false });
+  setUploads(data || []);
+};
   const handleExtract = async (upload: any) => {
     setExtracting(upload.id);
     try {
