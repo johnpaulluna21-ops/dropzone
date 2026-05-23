@@ -26,26 +26,33 @@ export default function Home() {
   };
 
   const handleUpload = async () => {
-    if (files.length === 0) return;
-    setUploading(true);
-    setProgress([]);
-    const results: string[] = [];
-    for (const file of files) {
+  if (files.length === 0) return;
+  setUploading(true);
+  setProgress([]);
+  const results: string[] = new Array(files.length).fill("");
+  const BATCH_SIZE = 5;
+
+  for (let i = 0; i < files.length; i += BATCH_SIZE) {
+    const batch = files.slice(i, i + BATCH_SIZE);
+    await Promise.all(batch.map(async (file, batchIdx) => {
+      const idx = i + batchIdx;
       const formData = new FormData();
       formData.append("file", file);
       try {
         const res = await fetch("/api/upload", { method: "POST", body: formData });
         const data = await res.json();
-        results.push(data.success ? `✅ ${file.name}` : (data.error === "duplicate" || data.message?.includes("already")) ? `⚠️ ${file.name} — already uploaded, skipped` : `❌ ${file.name} — failed`);
+        results[idx] = data.success ? `✅ ${file.name}` : (data.error === "duplicate" || data.message?.includes("already")) ? `⚠️ ${file.name} — already uploaded, skipped` : `❌ ${file.name} — failed`;
       } catch {
-        results.push(`❌ ${file.name}`);
+        results[idx] = `❌ ${file.name} — error`;
       }
-      setProgress([...results]);
-    }
-    setUploading(false);
-    if (results.every(r => r.startsWith("✅"))) setSuccess(true);
-    setFiles([]);
-  };
+      setProgress([...results.filter(r => r !== "")]);
+    }));
+  }
+
+  setUploading(false);
+  if (results.every(r => r.startsWith("✅"))) setSuccess(true);
+  setFiles([]);
+};
 
   const iconMap: Record<string, string> = {
     pdf: "📄", xlsx: "📊", xls: "📊", csv: "📊",
