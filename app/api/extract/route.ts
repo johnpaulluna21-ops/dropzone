@@ -233,7 +233,7 @@ await supabase
 
 // Auto-create client from 2307
 if (use2307Prompt && extractedData?.payee_tin && extractedData?.payee_name) {
-  const cleanTin = extractedData.payee_tin.replace(/\s/g, "");
+  const cleanTin = extractedData.payee_tin.replace(/\s/g, "").replace(/-000$/, "-000").replace(/(\d{3}-\d{3}-\d{3})-\d+$/, "$1-000");
   const { data: existing } = await supabase
     .from("clients")
     .select("id")
