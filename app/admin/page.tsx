@@ -237,13 +237,18 @@ export default function AdminPage() {
         .row-selectable:hover { background: rgba(99,102,241,0.04) !important; }
       `}</style>
 
-      <main style={{
-        minHeight: "100vh",
-        background: "#0f0f0f",
-        backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%), radial-gradient(circle at bottom right, rgba(20,184,166,0.05) 0%, transparent 40%)",
-        padding: "2rem 1.5rem",
-        fontFamily: "'Inter', sans-serif",
-      }}>
+      <main onClick={(e) => {
+  const target = e.target as HTMLElement;
+  if (!target.closest("table") && !target.closest("button")) {
+    setChecked([]);
+  }
+}} style={{
+  minHeight: "100vh",
+  background: "#0f0f0f",
+  backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%), radial-gradient(circle at bottom right, rgba(20,184,166,0.05) 0%, transparent 40%)",
+  padding: "2rem 1.5rem",
+  fontFamily: "'Inter', sans-serif",
+}}>
         <div style={{ maxWidth: 1400, margin: "0 auto" }}>
 
           {/* Header */}
