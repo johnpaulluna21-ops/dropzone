@@ -68,6 +68,18 @@ export default function AdminPage() {
     setChecked([]);
   };
 
+  const handleForceRerunSelected = async () => {
+    const toRerun = uploads.filter((u) => checked.includes(u.id));
+    if (toRerun.length === 0) return;
+    if (!confirm(`Force re-run ${toRerun.length} file(s)? This will overwrite existing data.`)) return;
+    setBulkExtracting(true);
+    for (const upload of toRerun) {
+      await handleExtract(upload);
+    }
+    setBulkExtracting(false);
+    setChecked([]);
+  };
+
   const handleDelete = async () => {
     if (checked.length === 0) return;
     if (!confirm(`Delete ${checked.length} file(s)? This cannot be undone.`)) return;
@@ -185,17 +197,17 @@ export default function AdminPage() {
               </button>
               {checked.length > 0 && (
                 <>
-                  const handleForceRerunSelected = async () => {
-  const toRerun = uploads.filter((u) => checked.includes(u.id));
-  if (toRerun.length === 0) return;
-  if (!confirm(`Force re-run ${toRerun.length} file(s)? This will overwrite existing data.`)) return;
-  setBulkExtracting(true);
-  for (const upload of toRerun) {
-    await handleExtract(upload);
-  }
-  setBulkExtracting(false);
-  setChecked([]);
-};
+                  <button onClick={handleExtractSelected} disabled={bulkExtracting} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: bulkExtracting ? 0.5 : 1 }}>
+                    <i className="ti ti-sparkles" style={{ fontSize: 14 }} />
+                    {bulkExtracting ? "Extracting..." : `Extract ${pendingCount} pending`}
+                  </button>
+                  <button onClick={handleForceRerunSelected} disabled={bulkExtracting} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(245,158,11,0.15)", border: "0.5px solid rgba(245,158,11,0.3)", borderRadius: 10, color: "#fcd34d", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: bulkExtracting ? 0.5 : 1 }}>
+                    <i className="ti ti-refresh" style={{ fontSize: 14 }} />
+                    {bulkExtracting ? "Running..." : `Force Re-run ${checked.length}`}
+                  </button>
+                  <button onClick={handleExportSelected} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.10)", border: "0.5px solid rgba(16,185,129,0.2)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                    <i className="ti ti-download" style={{ fontSize: 14 }} /> Export {checked.length}
+                  </button>
                   <button onClick={handleDelete} disabled={deleting} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(239,68,68,0.12)", border: "0.5px solid rgba(239,68,68,0.25)", borderRadius: 10, color: "#fca5a5", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: deleting ? 0.5 : 1 }}>
                     <i className="ti ti-trash" style={{ fontSize: 14 }} />
                     {deleting ? "Deleting..." : `Delete ${checked.length}`}
