@@ -21,8 +21,14 @@ export async function POST(request: NextRequest) {
       .select("id, r2_key, status, extracted_data")
       .in("id", ids);
 
+    console.log("Uploads to delete:", JSON.stringify(uploads));
+
     if (uploads) {
       for (const upload of uploads) {
+        const isExtracted = upload.status === "extracted";
+
+        console.log(`File ${upload.id}: status=${upload.status}, isExtracted=${isExtracted}`);
+
         // Always delete from R2
         try {
           await r2.send(new DeleteObjectCommand({
@@ -33,23 +39,23 @@ export async function POST(request: NextRequest) {
           // R2 file may already be gone, continue
         }
 
-        // Only delete Supabase record if not extracted (no useful data)
-        const isExtracted = upload.status === "extracted" && upload.extracted_data !== null;
-        if (!isExtracted) {
-          await supabase.from("uploads").delete().eq("id", upload.id);
-        } else {
-  // Soft delete - keep record but hide from dashboard
-  const { data, error } = await supabase
-    .from("uploads")
-    .update({ 
-      r2_key: null,
-      deleted_at: new Date().toISOString()
-    })
-    .eq("id", upload.id)
-    .select();
+        if (isExtracted) {
+          // Soft delete - keep record for tax data
+          const { data, error } = await supabase
+            .from("uploads")
+            .update({ 
+              r2_key: null,
+              deleted_at: new Date().toISOString()
+            })
+            .eq("id", upload.id)
+            .select();
 
-  console.log("Soft delete result:", JSON.stringify({ data, error, id: upload.id }));
-}
+          console.log("Soft delete result:", JSON.stringify({ data, error, id: upload.id }));
+        } else {
+          // Hard delete - no useful data to keep
+          await supabase.from("uploads").delete().eq("id", upload.id);
+          console.log("Hard deleted:", upload.id);
+        }
       }
     }
 
