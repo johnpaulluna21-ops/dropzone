@@ -60,7 +60,7 @@ async function extractTextFromWord(buffer: Buffer): Promise<string> {
 
 async function callClaudeWithText(text: string): Promise<any> {
   const message = await anthropic.messages.create({
-    model: "claude-opus-4-5",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 2048,
     messages: [
       {
@@ -117,7 +117,7 @@ export async function POST(request: NextRequest) {
       }
       const base64File = fileBuffer.toString("base64");
       const message = await anthropic.messages.create({
-        model: "claude-opus-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 2048,
         messages: [
           {
@@ -140,7 +140,7 @@ export async function POST(request: NextRequest) {
     } else if (isPDF) {
       const base64File = fileBuffer.toString("base64");
       const message = await anthropic.messages.create({
-        model: "claude-opus-4-5",
+        model: "claude-haiku-4-5-20251001",
         max_tokens: 2048,
         messages: [
           {
