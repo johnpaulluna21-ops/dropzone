@@ -369,7 +369,7 @@ export default function AdminPage() {
                         <input type="checkbox" checked={checked.includes(upload.id)} onChange={() => {}} onClick={(e) => { e.stopPropagation(); toggleCheck(upload.id, idx, e as any); }} />
                       </td>
                       <td style={{ padding: "12px 16px" }}>
-                        <p style={{ fontSize: 13, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 200 }}>{upload.file_name}</p>
+                        <p style={{ fontSize: 13, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: 350 }}>{upload.file_name}</p>
                         <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{(upload.file_size / 1024).toFixed(1)} KB</p>
                       </td>
                       <td style={{ padding: "12px 16px" }}>
