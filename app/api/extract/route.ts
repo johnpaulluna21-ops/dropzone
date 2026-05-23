@@ -4,6 +4,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { r2, BUCKET_NAME } from "../../../lib/r2";
+import sharp from "sharp";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -15,15 +16,23 @@ const supabase = createClient(
 );
 
 function cleanJson(text: string): string {
-  // Try to extract JSON from code fences first
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenceMatch) return fenceMatch[1].trim();
-  
-  // Try to find raw JSON object or array
   const jsonMatch = text.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
   if (jsonMatch) return jsonMatch[1].trim();
-  
   return text.trim();
+}
+
+async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string }> {
+  try {
+    const compressed = await sharp(buffer)
+      .resize(1500, 1500, { fit: "inside", withoutEnlargement: true })
+      .jpeg({ quality: 80 })
+      .toBuffer();
+    return { buffer: compressed, mimeType: "image/jpeg" };
+  } catch {
+    return { buffer, mimeType };
+  }
 }
 
 export async function POST(request: NextRequest) {
@@ -51,11 +60,20 @@ export async function POST(request: NextRequest) {
     for await (const chunk of r2Object.Body as AsyncIterable<Uint8Array>) {
       chunks.push(chunk);
     }
-    const fileBuffer = Buffer.concat(chunks);
-    const base64File = fileBuffer.toString("base64");
-
+    let fileBuffer = Buffer.concat(chunks);
     const isImage = upload.file_type.startsWith("image/");
     const isPDF = upload.file_type === "application/pdf";
+
+    let finalMimeType = upload.file_type;
+
+    // Compress images over 1MB
+    if (isImage && fileBuffer.length > 1024 * 1024) {
+      const compressed = await compressImage(fileBuffer, upload.file_type);
+      fileBuffer = compressed.buffer;
+      finalMimeType = compressed.mimeType;
+    }
+
+    const base64File = fileBuffer.toString("base64");
 
     let message;
 
@@ -71,7 +89,7 @@ export async function POST(request: NextRequest) {
                 type: "image",
                 source: {
                   type: "base64",
-                  media_type: upload.file_type,
+                  media_type: finalMimeType as any,
                   data: base64File,
                 },
               },
