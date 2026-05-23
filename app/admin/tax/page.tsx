@@ -93,7 +93,7 @@ export default function TaxPage() {
         const qCWT = forms.reduce((sum: number, f: any) => sum + (parseFloat(f?.total_tax_withheld) || 0), 0);
         cumulativeIncome += qIncome;
         cumulativeCWT += qCWT;
-        const taxDue = cumulativeIncome * 0.08;
+        const taxDue = Math.max(0, (cumulativeIncome - 250000) * 0.08);
         const qPayment = payments?.find((p: any) => p.quarter === parseInt(q.replace("Q", "")))?.amount_paid || 0;
         const balanceDue = taxDue - cumulativeCWT - previousPaid - (q === "Q1" ? priorCredit : 0);
         qSummaries.push({
