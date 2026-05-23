@@ -42,12 +42,34 @@ export default function TaxPage() {
     setClients(data || []);
   };
 
+  const openEdit = async (client: any) => {
+    setEditingClient(client);
+    setEditCreditYear((new Date().getFullYear() - 1).toString());
+
+    const { data: existingCredit } = await supabase
+      .from("prior_year_credits").select("excess_credit")
+      .eq("client_id", client.id)
+      .eq("year", new Date().getFullYear() - 1)
+      .single();
+    setEditCredit(existingCredit?.excess_credit?.toString() || "");
+
+    const { data: existingPayments } = await supabase
+      .from("tax_payments").select("quarter, amount_paid")
+      .eq("client_id", client.id)
+      .eq("year", parseInt(year));
+    const p = { Q1: "", Q2: "", Q3: "" };
+    (existingPayments || []).forEach((pay: any) => {
+      if (pay.quarter === 1) p.Q1 = pay.amount_paid?.toString() || "";
+      if (pay.quarter === 2) p.Q2 = pay.amount_paid?.toString() || "";
+      if (pay.quarter === 3) p.Q3 = pay.amount_paid?.toString() || "";
+    });
+    setEditPayments(p);
+  };
+
   const addClient = async () => {
     if (!newName.trim()) return alert("Name is required");
     const { data, error } = await supabase.from("clients").insert({
-      name: newName.trim(),
-      tin: newTin.trim() || null,
-      tax_type: newTaxType,
+      name: newName.trim(), tin: newTin.trim() || null, tax_type: newTaxType,
     }).select().single();
     if (error) return alert("Error adding client: " + error.message);
     if (newCredit && data) {
@@ -174,12 +196,10 @@ export default function TaxPage() {
     (c.name.toLowerCase().includes(search.toLowerCase()) || (c.tin || "").includes(search)));
   const clientsGrad = clients.filter(c => c.tax_type === "graduated" &&
     (c.name.toLowerCase().includes(search.toLowerCase()) || (c.tin || "").includes(search)));
-
   const totalPages8 = Math.ceil(clients8.length / PAGE_SIZE);
   const totalPagesGrad = Math.ceil(clientsGrad.length / PAGE_SIZE);
   const pagedClients8 = clients8.slice((page8 - 1) * PAGE_SIZE, page8 * PAGE_SIZE);
   const pagedClientsGrad = clientsGrad.slice((pageGrad - 1) * PAGE_SIZE, pageGrad * PAGE_SIZE);
-
   const showList = listOpen || search.length > 0;
   const activeQ = summary?.quarters.find((q: any) => q.quarter === activeQuarter);
 
@@ -196,7 +216,7 @@ export default function TaxPage() {
               <p style={{ fontSize: 12, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{client.name}</p>
               <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{client.tin || "No TIN"}</p>
             </div>
-            <button onClick={(e) => { e.stopPropagation(); setEditingClient(client); setEditCredit(""); setEditCreditYear((new Date().getFullYear() - 1).toString()); setEditPayments({ Q1: "", Q2: "", Q3: "" }); }} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, marginLeft: 8 }}>
+            <button onClick={(e) => { e.stopPropagation(); openEdit(client); }} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, marginLeft: 8 }}>
               Edit
             </button>
           </div>
@@ -267,8 +287,6 @@ export default function TaxPage() {
 
             {/* Clients Panel */}
             <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", alignSelf: "start" }}>
-
-              {/* Header */}
               <div style={{ padding: "16px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                 <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Clients ({clients.length})</p>
                 <div style={{ display: "flex", gap: 6 }}>
@@ -292,16 +310,35 @@ export default function TaxPage() {
 
               {/* Selected client chip */}
               {selected && !showList && (
-                <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(99,102,241,0.08)" }}>
-                  <div style={{ minWidth: 0 }}>
-                    <p style={{ fontSize: 12, fontWeight: 500, color: "#a5b4fc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selected.name}</p>
-                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{selected.tin || "No TIN"}</p>
-                  </div>
-                  <button onClick={() => setListOpen(true)} style={{ flexShrink: 0, marginLeft: 8, padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
-                    Change
-                  </button>
-                </div>
-              )}
+  <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(99,102,241,0.08)" }}>
+    <div style={{ minWidth: 0, flex: 1 }}>
+      <p style={{ fontSize: 12, fontWeight: 500, color: "#a5b4fc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selected.name}</p>
+      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{selected.tin || "No TIN"}</p>
+    </div>
+    <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 8 }}>
+      <button onClick={() => openEdit(selected)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
+        Edit
+      </button>
+      <button onClick={() => setListOpen(true)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
+        Change
+      </button>
+    </div>
+  </div>
+)}{selected && !showList && editingClient?.id === selected.id && (
+  <div style={{ padding: "12px 16px", background: "rgba(99,102,241,0.04)", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
+    <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Prior Year Excess Credit</p>
+    <input placeholder="Amount (₱)" value={editCredit} onChange={e => setEditCredit(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
+    <input placeholder="From year (e.g. 2025)" value={editCreditYear} onChange={e => setEditCreditYear(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 12, outline: "none" }} />
+    <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Tax Payments Made ({year})</p>
+    {(["Q1", "Q2", "Q3"] as const).map(q => (
+      <input key={q} placeholder={`${q} payment (₱)`} value={editPayments[q]} onChange={e => setEditPayments(prev => ({ ...prev, [q]: e.target.value }))} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
+    ))}
+    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
+      <button onClick={saveEditClient} style={{ flex: 1, padding: "7px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Save</button>
+      <button onClick={() => setEditingClient(null)} style={{ padding: "7px 12px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+    </div>
+  </div>
+)}
 
               {/* Search */}
               <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
@@ -346,7 +383,6 @@ export default function TaxPage() {
                 </div>
               ) : summary ? (
                 summary.client.tax_type === "graduated" ? (
-                  // Graduated placeholder
                   <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 300, gap: 12 }}>
                     <div style={{ width: 52, height: 52, background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.2)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <i className="ti ti-clock" style={{ fontSize: 24, color: "rgba(251,191,36,0.5)" }} />
@@ -440,6 +476,13 @@ export default function TaxPage() {
                                 {activeQ.isNoTaxDue ? "₱0.00" : activeQ.isOverpayment ? `(${fmt(activeQ.item63)})` : fmt(activeQ.item63)}
                               </span>
                             </div>
+                            {/* Payment made this quarter */}
+                            {activeQ.paid > 0 && (
+                              <div style={{ marginTop: 8, padding: "10px 14px", background: "rgba(99,102,241,0.06)", border: "0.5px solid rgba(99,102,241,0.2)", borderRadius: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <span style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Payment Made This Quarter</span>
+                                <span style={{ fontSize: 12, fontWeight: 600, color: "#a5b4fc" }}>{fmt(activeQ.paid)}</span>
+                              </div>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -464,7 +507,7 @@ export default function TaxPage() {
                           <p style={{ fontSize: 15, fontWeight: 700, color: "#a5b4fc" }}>{fmt(summary.quarters[summary.quarters.length - 1]?.item54 || 0)}</p>
                         </div>
                         <div>
-                          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Total CWT</p>
+                          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>Total Credits/Payments</p>
                           <p style={{ fontSize: 15, fontWeight: 700, color: "#6ee7b7" }}>{fmt(summary.quarters[summary.quarters.length - 1]?.item62 || 0)}</p>
                         </div>
                       </div>
