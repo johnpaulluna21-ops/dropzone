@@ -221,15 +221,31 @@ export async function POST(request: NextRequest) {
 
     const documentType = extractedData?.document_type || null;
 
-    await supabase
-      .from("uploads")
-      .update({
-        extracted_data: extractedData,
-        extracted_at: new Date().toISOString(),
-        status: "extracted",
-        ...(documentType && { document_type: documentType }),
-      })
-      .eq("id", uploadId);
+await supabase
+  .from("uploads")
+  .update({
+    extracted_data: extractedData,
+    extracted_at: new Date().toISOString(),
+    status: "extracted",
+    ...(documentType && { document_type: documentType }),
+  })
+  .eq("id", uploadId);
+
+// Auto-create client from 2307
+if (use2307Prompt && extractedData?.payee_tin && extractedData?.payee_name) {
+  const cleanTin = extractedData.payee_tin.replace(/\s/g, "");
+  const { data: existing } = await supabase
+    .from("clients")
+    .select("id")
+    .eq("tin", cleanTin)
+    .single();
+  if (!existing) {
+    await supabase.from("clients").insert({
+      name: extractedData.payee_name,
+      tin: cleanTin,
+    });
+  }
+}
 
     return NextResponse.json({ success: true, data: extractedData });
   } catch (error) {
