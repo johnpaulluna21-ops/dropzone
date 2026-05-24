@@ -332,7 +332,7 @@ export function validateDAT(filename: string, raw: string): DATValidationResult 
         const period = parsePeriod(fields[8]);
         if (!period) {
           errors.push(`Period must be MM/YYYY format, got "${fields[8]}"`);
-        } else if (!SAWT_SCHEMA.VALID_QUARTER_MONTHS.includes(period.month)) {
+        } else if (!(SAWT_SCHEMA.VALID_QUARTER_MONTHS as readonly number[]).includes(period.month)) {
           warnings.push(`Period month ${String(period.month).padStart(2, "0")} is not a quarter-end month (expected 03, 06, 09, or 12)`);
         }
         if (!stripQuotes(fields[9])) warnings.push("RDO code is blank");
