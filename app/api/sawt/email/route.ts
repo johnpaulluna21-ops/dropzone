@@ -3,7 +3,7 @@ import nodemailer from "nodemailer";
 
 export async function POST(request: NextRequest) {
   try {
-    const { datContent, datFilename, clientName, registeredName, tin, quarterNum, year } = await request.json();
+    const { datContent, datFilename, clientName, registeredName, tin, quarterNum, year, address } = await request.json();
 
     const quarterLabels: Record<number, string> = {
       1: "1st Quarter",
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
 
     const subject = `Summary Alphalist of Withholding Taxes (${clientName}) ${quarterLabels[quarterNum]} ${year}`;
 
-    const body = `TIN: ${tin}\nREGISTERED NAME: ${registeredName}`;
+    const body = `TIN: ${tin}\nREGISTERED NAME: ${registeredName}\nADDRESS: ${address || ""}`;
 
     const transporter = nodemailer.createTransport({
       service: "gmail",

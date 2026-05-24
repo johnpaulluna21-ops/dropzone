@@ -272,6 +272,7 @@ export default function TaxPage() {
   const [editFirstName, setEditFirstName] = useState("");
   const [editMiddleName, setEditMiddleName] = useState("");
   const [editRdo, setEditRdo] = useState("");
+  const [editAddress, setEditAddress] = useState("");
   const [editPayments, setEditPayments] = useState<{ Q1: string; Q2: string; Q3: string }>({ Q1: "", Q2: "", Q3: "" });
   const [deletedPayments, setDeletedPayments] = useState<number[]>([]);
   const [search, setSearch] = useState("");
@@ -284,17 +285,9 @@ export default function TaxPage() {
   const [batchModal, setBatchModal] = useState<{ quarter: string; clientsWithForms: { client: any; forms: ExtractedForm[] }[] } | null>(null);
   const [batchGenerating, setBatchGenerating] = useState(false);
   const [batchStatus, setBatchStatus] = useState("");
-
-  // ── Batch email state ──────────────────────────────────────────────────────
-  const [batchEmailClients, setBatchEmailClients] = useState<{
-    client: any;
-    datContent: string;
-    datFilename: string;
-    quarterNum: number;
-  }[]>([]);
+  const [batchEmailClients, setBatchEmailClients] = useState<{ client: any; datContent: string; datFilename: string; quarterNum: number; }[]>([]);
   const [batchEmailSending, setBatchEmailSending] = useState(false);
   const [batchEmailStatus, setBatchEmailStatus] = useState("");
-  // ──────────────────────────────────────────────────────────────────────────
 
   useEffect(() => { fetchClients(); }, []);
   useEffect(() => { setPage8(1); setPageGrad(1); }, [search]);
@@ -311,6 +304,7 @@ export default function TaxPage() {
     setEditFirstName(client.first_name || "");
     setEditMiddleName(client.middle_name || "");
     setEditRdo(client.rdo_code || "");
+    setEditAddress(client.address || "");
     setEditCreditYear((new Date().getFullYear() - 1).toString());
     setDeletedPayments([]);
     const { data: existingCredit } = await supabase.from("prior_year_credits").select("excess_credit").eq("client_id", client.id).eq("year", new Date().getFullYear() - 1).single();
@@ -350,7 +344,14 @@ export default function TaxPage() {
 
   const saveEditClient = useCallback(async () => {
     if (!editingClient) return;
-    await supabase.from("clients").update({ tax_type: editTaxType, last_name: editLastName.trim() || null, first_name: editFirstName.trim() || null, middle_name: editMiddleName.trim() || null, rdo_code: editRdo.trim() || null }).eq("id", editingClient.id);
+    await supabase.from("clients").update({
+      tax_type: editTaxType,
+      last_name: editLastName.trim() || null,
+      first_name: editFirstName.trim() || null,
+      middle_name: editMiddleName.trim() || null,
+      rdo_code: editRdo.trim() || null,
+      address: editAddress.trim() || null,
+    }).eq("id", editingClient.id);
     if (editCredit) {
       const creditYearInt = parseInt(editCreditYear) || new Date().getFullYear() - 1;
       const { data: existing } = await supabase.from("prior_year_credits").select("id").eq("client_id", editingClient.id).eq("year", creditYearInt).single();
@@ -367,18 +368,16 @@ export default function TaxPage() {
       if (existing) { await supabase.from("prior_year_credits").update({ amount_paid: amountPaid }).eq("id", existing.id); }
       else { await supabase.from("tax_payments").insert({ client_id: editingClient.id, year: parseInt(year), quarter: qNum, amount_paid: amountPaid }); }
     }
-    const updatedClient = { ...editingClient, tax_type: editTaxType, last_name: editLastName.trim() || null, first_name: editFirstName.trim() || null, middle_name: editMiddleName.trim() || null, rdo_code: editRdo.trim() || null };
-    setEditingClient(null); setEditCredit(""); setEditPayments({ Q1: "", Q2: "", Q3: "" }); setDeletedPayments([]);
+    const updatedClient = { ...editingClient, tax_type: editTaxType, last_name: editLastName.trim() || null, first_name: editFirstName.trim() || null, middle_name: editMiddleName.trim() || null, rdo_code: editRdo.trim() || null, address: editAddress.trim() || null };
+    setEditingClient(null); setEditCredit(""); setEditPayments({ Q1: "", Q2: "", Q3: "" }); setDeletedPayments([]); setEditAddress("");
     fetchClients();
     if (selected?.id === editingClient.id) { setSelected(updatedClient); computeSummary(updatedClient); }
-  }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editCredit, editCreditYear, editPayments, deletedPayments, fetchClients, selected, year]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editAddress, editCredit, editCreditYear, editPayments, deletedPayments, fetchClients, selected, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGenerateSAWT = (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
     const result = generateSAWTContent(
       { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
-      quarterNum,
-      quarterForms,
-      year
+      quarterNum, quarterForms, year
     );
     fallbackDownload(result.datFilename, result.datContent, "text/plain");
     const printWindow = window.open("", "_blank", "width=900,height=600");
@@ -394,9 +393,7 @@ export default function TaxPage() {
     try {
       const result = generateSAWTContent(
         { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
-        quarterNum,
-        quarterForms,
-        year
+        quarterNum, quarterForms, year
       );
       const fullName = `${client.first_name || ""} ${client.middle_name ? client.middle_name + " " : ""}${client.last_name || ""}`.trim().toUpperCase();
       const nameParts = (client.name || "").split("/");
@@ -414,22 +411,16 @@ export default function TaxPage() {
           tin: result.displayTin,
           quarterNum,
           year,
+          address: client.address || "",
         }),
       });
-      if (resp.ok) {
-        setSendStatus(`Sent: ${fullName}`);
-        setTimeout(() => setSendStatus(""), 4000);
-      } else {
-        setSendStatus("Failed to send. Try again.");
-        setTimeout(() => setSendStatus(""), 4000);
-      }
+      if (resp.ok) { setSendStatus(`Sent: ${fullName}`); setTimeout(() => setSendStatus(""), 4000); }
+      else { setSendStatus("Failed to send. Try again."); setTimeout(() => setSendStatus(""), 4000); }
     } catch {
-      setSendStatus("Failed to send. Try again.");
-      setTimeout(() => setSendStatus(""), 4000);
+      setSendStatus("Failed to send. Try again."); setTimeout(() => setSendStatus(""), 4000);
     }
   };
 
-  // ── Batch email send ───────────────────────────────────────────────────────
   const handleBatchSendEmail = async () => {
     if (batchEmailClients.length === 0) return;
     setBatchEmailSending(true);
@@ -446,28 +437,16 @@ export default function TaxPage() {
         await fetch("/api/sawt/email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            datContent,
-            datFilename,
-            clientName: fullName,
-            registeredName,
-            tin: displayTin,
-            quarterNum,
-            year,
-          }),
+          body: JSON.stringify({ datContent, datFilename, clientName: fullName, registeredName, tin: displayTin, quarterNum, year, address: client.address || "" }),
         });
-      } catch { /* continue even if one fails */ }
+      } catch { /* continue */ }
       sent++;
       await new Promise(r => setTimeout(r, 800));
     }
     setBatchEmailSending(false);
     setBatchEmailStatus(`Done — ${sent} email${sent !== 1 ? "s" : ""} sent.`);
-    setTimeout(() => {
-      setBatchEmailClients([]);
-      setBatchEmailStatus("");
-    }, 4000);
+    setTimeout(() => { setBatchEmailClients([]); setBatchEmailStatus(""); }, 4000);
   };
-  // ──────────────────────────────────────────────────────────────────────────
 
   const openBatchModal = async (quarterStr: string) => {
     const qNum = parseInt(quarterStr.replace("Q", ""));
@@ -493,11 +472,7 @@ export default function TaxPage() {
     setBatchModal({ quarter: quarterStr, clientsWithForms: result });
   };
 
-  const runBatchGenerate = async (
-    selectedClients: { client: any; forms: ExtractedForm[] }[],
-    quarterStr: string,
-    folderName: string
-  ) => {
+  const runBatchGenerate = async (selectedClients: { client: any; forms: ExtractedForm[] }[], quarterStr: string, folderName: string) => {
     setBatchModal(null);
     setBatchGenerating(true);
     setBatchStatus("Preparing files…");
@@ -521,43 +496,21 @@ export default function TaxPage() {
       try {
         setBatchStatus("Waiting for folder selection…");
         dirHandle = await (window as any).showDirectoryPicker({ startIn: "downloads", mode: "readwrite", suggestedName: folderName });
-      } catch {
-        setBatchGenerating(false); setBatchStatus(""); return;
-      }
+      } catch { setBatchGenerating(false); setBatchStatus(""); return; }
     }
     setBatchStatus("Writing summary…");
     if (dirHandle) { await writeFileToDir(dirHandle, summaryFilename, summaryTxt, "text/plain"); }
     else { fallbackDownload(summaryFilename, summaryTxt, "text/plain"); await new Promise(r => setTimeout(r, 500)); }
-
-    // ── Collect email queue while writing files ──────────────────────────────
-    const emailQueue: {
-      client: any;
-      datContent: string;
-      datFilename: string;
-      quarterNum: number;
-    }[] = [];
-    // ────────────────────────────────────────────────────────────────────────
-
+    const emailQueue: { client: any; datContent: string; datFilename: string; quarterNum: number; }[] = [];
     for (let i = 0; i < selectedClients.length; i++) {
       const { client, forms } = selectedClients[i];
       const clientLabel = (client.last_name || client.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 12);
       setBatchStatus(`Writing ${i + 1} / ${selectedClients.length}: ${clientLabel}…`);
       const result = generateSAWTContent(
         { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
-        qNum,
-        forms,
-        year
+        qNum, forms, year
       );
-
-      // ── Push to email queue ──────────────────────────────────────────────
-      emailQueue.push({
-        client,
-        datContent: result.datContent,
-        datFilename: result.datFilename,
-        quarterNum: qNum,
-      });
-      // ────────────────────────────────────────────────────────────────────
-
+      emailQueue.push({ client, datContent: result.datContent, datFilename: result.datFilename, quarterNum: qNum });
       const htmlFilename = `SAWT-${result.datFilename.replace(".DAT", "")}-${clientLabel}.html`;
       const htmlWithPrint = result.html.replace("</body>", `<script>window.onload=function(){window.print();}<\/script></body>`);
       if (dirHandle) {
@@ -570,11 +523,7 @@ export default function TaxPage() {
         await new Promise(r => setTimeout(r, 800));
       }
     }
-
-    // ── Make email queue available to the UI ─────────────────────────────────
     setBatchEmailClients(emailQueue);
-    // ────────────────────────────────────────────────────────────────────────
-
     setBatchGenerating(false);
     setBatchStatus("");
   };
@@ -667,15 +616,12 @@ export default function TaxPage() {
       {showValidator && <DATValidatorModal onClose={() => setShowValidator(false)} />}
       {batchModal && <BatchSAWTModal quarter={batchModal.quarter} yearStr={year} clientsWithForms={batchModal.clientsWithForms} onClose={() => setBatchModal(null)} onConfirm={runBatchGenerate} />}
 
-      {/* Batch generating progress toast */}
       {batchGenerating && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
           <i className="ti ti-loader-2" style={{ fontSize: 16, color: "#a5b4fc" }} />
           <p style={{ fontSize: 13, color: "#fff" }}>{batchStatus || "Generating batch SAWT files…"}</p>
         </div>
       )}
-
-      {/* "Ready to send" toast — appears after batch generate completes */}
       {batchEmailClients.length > 0 && !batchEmailSending && !batchEmailStatus && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "14px 18px", background: "#1a1a1a", border: "0.5px solid rgba(59,130,246,0.35)", borderRadius: 12, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxWidth: 400 }}>
           <i className="ti ti-mail" style={{ fontSize: 18, color: "#93c5fd", flexShrink: 0 }} />
@@ -683,26 +629,15 @@ export default function TaxPage() {
             <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{batchEmailClients.length} DAT file{batchEmailClients.length !== 1 ? "s" : ""} ready</p>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Send all to BIR eSubmission?</p>
           </div>
-          <button
-            onClick={handleBatchSendEmail}
-            style={{ padding: "7px 14px", background: "rgba(59,130,246,0.2)", border: "0.5px solid rgba(59,130,246,0.4)", borderRadius: 8, color: "#93c5fd", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}
-          >
+          <button onClick={handleBatchSendEmail} style={{ padding: "7px 14px", background: "rgba(59,130,246,0.2)", border: "0.5px solid rgba(59,130,246,0.4)", borderRadius: 8, color: "#93c5fd", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}>
             <i className="ti ti-send" style={{ fontSize: 12 }} /> Send All
           </button>
-          <button
-            onClick={() => setBatchEmailClients([])}
-            style={{ width: 26, height: 26, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", flexShrink: 0 }}
-          >✕</button>
+          <button onClick={() => setBatchEmailClients([])} style={{ width: 26, height: 26, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", flexShrink: 0 }}>✕</button>
         </div>
       )}
-
-      {/* Sending progress / done toast */}
       {(batchEmailSending || batchEmailStatus) && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: `0.5px solid ${batchEmailSending ? "rgba(59,130,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxWidth: 400 }}>
-          <i
-            className={`ti ti-${batchEmailSending ? "loader-2" : "circle-check"}`}
-            style={{ fontSize: 16, color: batchEmailSending ? "#93c5fd" : "#6ee7b7", flexShrink: 0 }}
-          />
+          <i className={`ti ti-${batchEmailSending ? "loader-2" : "circle-check"}`} style={{ fontSize: 16, color: batchEmailSending ? "#93c5fd" : "#6ee7b7", flexShrink: 0 }} />
           <p style={{ fontSize: 13, color: "#fff" }}>{batchEmailStatus || "Sending emails…"}</p>
         </div>
       )}
@@ -711,7 +646,6 @@ export default function TaxPage() {
         <div style={{ flex: 1, minWidth: drawerOpen ? "900px" : "0", transition: "margin-right 0.25s ease", marginRight: drawerOpen ? "320px" : "0" }}>
           <main style={{ minHeight: "100vh", background: "#0f0f0f", backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%)", padding: "2rem 1.5rem", fontFamily: "'Inter', sans-serif" }}>
             <div style={{ maxWidth: 1400, margin: "0 auto" }}>
-
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "2rem" }}>
                 <div style={{ width: 38, height: 38, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <i className="ti ti-calculator" style={{ color: "#fff", fontSize: 18 }} />
@@ -721,13 +655,8 @@ export default function TaxPage() {
                   <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>BIR 1701Q — Income Tax Compliance</p>
                 </div>
                 <button onClick={() => openBatchModal(activeQuarter)} disabled={batchGenerating} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.1)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, cursor: batchGenerating ? "default" : "pointer", fontFamily: "inherit", opacity: batchGenerating ? 0.5 : 1 }}>
-  <i className="ti ti-files" style={{ fontSize: 14 }} /> Batch SAWT
-</button>
-{batchEmailClients.length > 0 && (
-  <button onClick={handleBatchSendEmail} disabled={batchEmailSending} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(59,130,246,0.15)", border: "0.5px solid rgba(59,130,246,0.4)", borderRadius: 10, color: "#93c5fd", fontSize: 13, fontWeight: 600, cursor: batchEmailSending ? "default" : "pointer", fontFamily: "inherit", opacity: batchEmailSending ? 0.5 : 1 }}>
-    <i className="ti ti-send" style={{ fontSize: 14 }} /> Send All ({batchEmailClients.length})
-  </button>
-)}
+                  <i className="ti ti-files" style={{ fontSize: 14 }} /> Batch SAWT
+                </button>
                 <button onClick={() => setShowValidator(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.1)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                   <i className="ti ti-shield-check" style={{ fontSize: 14 }} /> Validate DAT
                 </button>
@@ -744,7 +673,6 @@ export default function TaxPage() {
               </div>
 
               <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16 }}>
-
                 <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", alignSelf: "start" }}>
                   <div style={{ padding: "16px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Clients ({clients.length})</p>
@@ -859,11 +787,7 @@ export default function TaxPage() {
                                     </div>
                                   )}
                                 </div>
-                                {sendStatus && (
-                                  <div style={{ fontSize: 11, color: "#6ee7b7" }}>
-                                    {sendStatus}
-                                  </div>
-                                )}
+                                {sendStatus && <div style={{ fontSize: 11, color: "#6ee7b7" }}>{sendStatus}</div>}
                               </div>
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
@@ -965,7 +889,8 @@ export default function TaxPage() {
             <input placeholder="Last Name" value={editLastName} onChange={e => setEditLastName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
             <input placeholder="First Name" value={editFirstName} onChange={e => setEditFirstName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
             <input placeholder="Middle Name" value={editMiddleName} onChange={e => setEditMiddleName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
-            <input placeholder="RDO Code (e.g. 015)" value={editRdo} onChange={e => setEditRdo(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 14, outline: "none" }} />
+            <input placeholder="RDO Code (e.g. 015)" value={editRdo} onChange={e => setEditRdo(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
+            <input placeholder="Address (e.g. Rizal, City of Santiago, Isabela)" value={editAddress} onChange={e => setEditAddress(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 14, outline: "none" }} />
             <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Prior Year Excess Credit</p>
             <input placeholder="Amount (₱)" value={editCredit} onChange={e => setEditCredit(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
             <input placeholder="From year (e.g. 2025)" value={editCreditYear} onChange={e => setEditCreditYear(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 14, outline: "none" }} />
