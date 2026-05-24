@@ -403,7 +403,7 @@ export default function TaxPage() {
         setSendStatus("Failed to send. Try again.");
         setTimeout(() => setSendStatus(""), 4000);
       }
-    } catch (e) {
+    } catch {
       setSendStatus("Failed to send. Try again.");
       setTimeout(() => setSendStatus(""), 4000);
     }
@@ -461,7 +461,7 @@ export default function TaxPage() {
       try {
         setBatchStatus("Waiting for folder selection…");
         dirHandle = await (window as any).showDirectoryPicker({ startIn: "downloads", mode: "readwrite", suggestedName: folderName });
-      } catch (e) {
+      } catch {
         setBatchGenerating(false); setBatchStatus(""); return;
       }
     }
