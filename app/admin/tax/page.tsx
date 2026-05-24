@@ -389,6 +389,42 @@ export default function TaxPage() {
     }
   };
 
+  const handleSendEmail = async (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
+    try {
+      const result = generateSAWTContent(
+        { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
+        quarterNum,
+        quarterForms,
+        year
+      );
+
+      const fullName = `${client.first_name || ""} ${client.middle_name ? client.middle_name + " " : ""}${client.last_name || ""}`.trim().toUpperCase();
+      const registeredName = (client.name || fullName).toUpperCase();
+
+      const resp = await fetch("/api/sawt/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          datContent: result.datContent,
+          datFilename: result.datFilename,
+          clientName: fullName,
+          registeredName,
+          tin: result.displayTin,
+          quarterNum,
+          year,
+        }),
+      });
+
+      if (resp.ok) {
+        alert(`✅ Sent to eSubmission: ${fullName}`);
+      } else {
+        alert("❌ Failed to send email. Please try again.");
+      }
+    } catch {
+      alert("❌ Error sending email.");
+    }
+  };
+
   const openBatchModal = async (quarterStr: string) => {
     const qNum = parseInt(quarterStr.replace("Q", ""));
     const { data: uploads } = await supabase.from("uploads").select("*").eq("status", "extracted");
@@ -717,10 +753,16 @@ export default function TaxPage() {
                                   {activeQ.forms} 2307{activeQ.forms !== 1 ? "s" : ""}
                                 </span>
                                 {activeQ.forms > 0 && (
-                                  <button onClick={() => handleGenerateSAWT(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 8, color: "#6ee7b7", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
-                                    <i className="ti ti-file-download" style={{ fontSize: 12 }} /> Generate SAWT
-                                  </button>
-                                )}
+  <div style={{ display: "flex", gap: 6 }}>
+    <button onClick={() => handleGenerateSAWT(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 8, color: "#6ee7b7", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+      <i className="ti ti-file-download" style={{ fontSize: 12 }} /> Generate SAWT
+    </button>
+    <button onClick={() => handleSendEmail(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(59,130,246,0.15)", border: "0.5px solid rgba(59,130,246,0.3)", borderRadius: 8, color: "#93c5fd", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+      <i className="ti ti-send" style={{ fontSize: 12 }} /> Send to eSubmission
+    </button>
+  </div>
+)}
+                                
                               </div>
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
