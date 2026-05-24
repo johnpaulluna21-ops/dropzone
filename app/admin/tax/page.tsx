@@ -370,8 +370,7 @@ export default function TaxPage() {
     setEditingClient(null); setEditCredit(""); setEditPayments({ Q1: "", Q2: "", Q3: "" }); setDeletedPayments([]);
     fetchClients();
     if (selected?.id === editingClient.id) { setSelected(updatedClient); computeSummary(updatedClient); }
-  }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editCredit, editCreditYear, editPayments, deletedPayments, year, selected]);
-
+    }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editCredit, editCreditYear, editPayments, deletedPayments, fetchClients, selected, year, computeSummary]); // eslint-disable-line react-hooks/exhaustive-deps
   // ── Single SAWT generation (download + print) ──
   const handleGenerateSAWT = (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
     const result = generateSAWTContent(
