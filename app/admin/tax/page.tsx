@@ -285,6 +285,17 @@ export default function TaxPage() {
   const [batchGenerating, setBatchGenerating] = useState(false);
   const [batchStatus, setBatchStatus] = useState("");
 
+  // ── Batch email state ──────────────────────────────────────────────────────
+  const [batchEmailClients, setBatchEmailClients] = useState<{
+    client: any;
+    datContent: string;
+    datFilename: string;
+    quarterNum: number;
+  }[]>([]);
+  const [batchEmailSending, setBatchEmailSending] = useState(false);
+  const [batchEmailStatus, setBatchEmailStatus] = useState("");
+  // ──────────────────────────────────────────────────────────────────────────
+
   useEffect(() => { fetchClients(); }, []);
   useEffect(() => { setPage8(1); setPageGrad(1); }, [search]);
 
@@ -418,6 +429,46 @@ export default function TaxPage() {
     }
   };
 
+  // ── Batch email send ───────────────────────────────────────────────────────
+  const handleBatchSendEmail = async () => {
+    if (batchEmailClients.length === 0) return;
+    setBatchEmailSending(true);
+    setBatchEmailStatus("");
+    let sent = 0;
+    for (const item of batchEmailClients) {
+      const { client, datContent, datFilename, quarterNum } = item;
+      const fullName = `${client.first_name || ""} ${client.middle_name ? client.middle_name + " " : ""}${client.last_name || ""}`.trim().toUpperCase();
+      const nameParts = (client.name || "").split("/");
+      const registeredName = (nameParts.length > 1 ? nameParts[1] : nameParts[0]).trim().toUpperCase();
+      const { display: displayTin } = normalizeTin(client.tin || "");
+      setBatchEmailStatus(`Sending ${sent + 1} / ${batchEmailClients.length}: ${fullName}…`);
+      try {
+        await fetch("/api/sawt/email", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            datContent,
+            datFilename,
+            clientName: fullName,
+            registeredName,
+            tin: displayTin,
+            quarterNum,
+            year,
+          }),
+        });
+      } catch { /* continue even if one fails */ }
+      sent++;
+      await new Promise(r => setTimeout(r, 800));
+    }
+    setBatchEmailSending(false);
+    setBatchEmailStatus(`Done — ${sent} email${sent !== 1 ? "s" : ""} sent.`);
+    setTimeout(() => {
+      setBatchEmailClients([]);
+      setBatchEmailStatus("");
+    }, 4000);
+  };
+  // ──────────────────────────────────────────────────────────────────────────
+
   const openBatchModal = async (quarterStr: string) => {
     const qNum = parseInt(quarterStr.replace("Q", ""));
     const { data: uploads } = await supabase.from("uploads").select("*").eq("status", "extracted");
@@ -477,6 +528,16 @@ export default function TaxPage() {
     setBatchStatus("Writing summary…");
     if (dirHandle) { await writeFileToDir(dirHandle, summaryFilename, summaryTxt, "text/plain"); }
     else { fallbackDownload(summaryFilename, summaryTxt, "text/plain"); await new Promise(r => setTimeout(r, 500)); }
+
+    // ── Collect email queue while writing files ──────────────────────────────
+    const emailQueue: {
+      client: any;
+      datContent: string;
+      datFilename: string;
+      quarterNum: number;
+    }[] = [];
+    // ────────────────────────────────────────────────────────────────────────
+
     for (let i = 0; i < selectedClients.length; i++) {
       const { client, forms } = selectedClients[i];
       const clientLabel = (client.last_name || client.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 12);
@@ -487,6 +548,16 @@ export default function TaxPage() {
         forms,
         year
       );
+
+      // ── Push to email queue ──────────────────────────────────────────────
+      emailQueue.push({
+        client,
+        datContent: result.datContent,
+        datFilename: result.datFilename,
+        quarterNum: qNum,
+      });
+      // ────────────────────────────────────────────────────────────────────
+
       const htmlFilename = `SAWT-${result.datFilename.replace(".DAT", "")}-${clientLabel}.html`;
       const htmlWithPrint = result.html.replace("</body>", `<script>window.onload=function(){window.print();}<\/script></body>`);
       if (dirHandle) {
@@ -499,7 +570,13 @@ export default function TaxPage() {
         await new Promise(r => setTimeout(r, 800));
       }
     }
-    setBatchGenerating(false); setBatchStatus("");
+
+    // ── Make email queue available to the UI ─────────────────────────────────
+    setBatchEmailClients(emailQueue);
+    // ────────────────────────────────────────────────────────────────────────
+
+    setBatchGenerating(false);
+    setBatchStatus("");
   };
 
   const computeSummary = async (client: any) => {
@@ -589,10 +666,44 @@ export default function TaxPage() {
 
       {showValidator && <DATValidatorModal onClose={() => setShowValidator(false)} />}
       {batchModal && <BatchSAWTModal quarter={batchModal.quarter} yearStr={year} clientsWithForms={batchModal.clientsWithForms} onClose={() => setBatchModal(null)} onConfirm={runBatchGenerate} />}
+
+      {/* Batch generating progress toast */}
       {batchGenerating && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
           <i className="ti ti-loader-2" style={{ fontSize: 16, color: "#a5b4fc" }} />
           <p style={{ fontSize: 13, color: "#fff" }}>{batchStatus || "Generating batch SAWT files…"}</p>
+        </div>
+      )}
+
+      {/* "Ready to send" toast — appears after batch generate completes */}
+      {batchEmailClients.length > 0 && !batchEmailSending && !batchEmailStatus && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "14px 18px", background: "#1a1a1a", border: "0.5px solid rgba(59,130,246,0.35)", borderRadius: 12, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxWidth: 400 }}>
+          <i className="ti ti-mail" style={{ fontSize: 18, color: "#93c5fd", flexShrink: 0 }} />
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{batchEmailClients.length} DAT file{batchEmailClients.length !== 1 ? "s" : ""} ready</p>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Send all to BIR eSubmission?</p>
+          </div>
+          <button
+            onClick={handleBatchSendEmail}
+            style={{ padding: "7px 14px", background: "rgba(59,130,246,0.2)", border: "0.5px solid rgba(59,130,246,0.4)", borderRadius: 8, color: "#93c5fd", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}
+          >
+            <i className="ti ti-send" style={{ fontSize: 12 }} /> Send All
+          </button>
+          <button
+            onClick={() => setBatchEmailClients([])}
+            style={{ width: 26, height: 26, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", flexShrink: 0 }}
+          >✕</button>
+        </div>
+      )}
+
+      {/* Sending progress / done toast */}
+      {(batchEmailSending || batchEmailStatus) && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: `0.5px solid ${batchEmailSending ? "rgba(59,130,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxWidth: 400 }}>
+          <i
+            className={`ti ti-${batchEmailSending ? "loader-2" : "circle-check"}`}
+            style={{ fontSize: 16, color: batchEmailSending ? "#93c5fd" : "#6ee7b7", flexShrink: 0 }}
+          />
+          <p style={{ fontSize: 13, color: "#fff" }}>{batchEmailStatus || "Sending emails…"}</p>
         </div>
       )}
 
