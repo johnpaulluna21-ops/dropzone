@@ -184,9 +184,10 @@ export default function TaxPage() {
       const payorTin = (f?.atc_tin || f?.payor_tin || "").replace(/\D/g, "").substring(0, 9).padEnd(9, "0");
       const payorName = (f?.payor_name || f?.client_name || "").toUpperCase().replace(/"/g, "").replace(/\.$/, "").trim();
       const atc = f?.atc || "WI120";
-      const income = parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0;
-      const tax = parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0;
-      lines.push(`DSAWT,D1701Q,${i + 1},${payorTin},0000,"${payorName}",,,,${period},,${atc},2.00,${income.toFixed(2)},${tax.toFixed(2)}`);
+const income = parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0;
+const tax = parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0;
+const rate = income > 0 ? parseFloat((tax / income * 100).toFixed(2)) : 2.00;
+lines.push(`DSAWT,D1701Q,${i + 1},${payorTin},0000,"${payorName}",,,,${period},,${atc},${rate.toFixed(2)},${income.toFixed(2)},${tax.toFixed(2)}`);
     });
     lines.push(`CSAWT,C1701Q,${tinMain},${tinBranch},${period},${totalIncome.toFixed(2)},${totalTax.toFixed(2)}`);
 
@@ -213,7 +214,7 @@ export default function TaxPage() {
         <td style="text-align:center">${i + 1}</td>
         <td>${payorTinFmt}</td>
         <td style="text-align:center">${atc}</td>
-        <td style="text-align:center">2.00</td>
+        <td style="text-align:center">${income > 0 ? (tax / income * 100).toFixed(2) : "2.00"}</td>
         <td>${payorName}</td>
         <td style="text-align:right">${fmtNum(income)}</td>
         <td style="text-align:right">${fmtNum(tax)}</td>
