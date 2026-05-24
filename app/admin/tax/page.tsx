@@ -10,57 +10,6 @@ const supabase = createClient(
 );
 
 const PAGE_SIZE = 10;
-
-const EditForm = ({
-  editTaxType, setEditTaxType, editCredit, setEditCredit,
-  editCreditYear, setEditCreditYear, editPayments, setEditPayments,
-  deletedPayments, clearPayment, setDeletedPayments,
-  editLastName, setEditLastName, editFirstName, setEditFirstName,
-  editMiddleName, setEditMiddleName, editRdo, setEditRdo,
-  saveEditClient, setEditingClient, year
-}: any) => (
-  <div style={{ padding: "12px 16px", background: "rgba(99,102,241,0.04)", borderTop: "0.5px solid rgba(255,255,255,0.06)" }}>
-    <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Tax Type</p>
-    <select value={editTaxType} onChange={(e: any) => setEditTaxType(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 12, cursor: "pointer" }}>
-      <option value="8%">8% Income Tax Rate</option>
-      <option value="graduated">Graduated IT Rate</option>
-    </select>
-    <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Name (for SAWT)</p>
-    <input placeholder="Last Name" value={editLastName} onChange={(e: any) => setEditLastName(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
-    <input placeholder="First Name" value={editFirstName} onChange={(e: any) => setEditFirstName(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
-    <input placeholder="Middle Name" value={editMiddleName} onChange={(e: any) => setEditMiddleName(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
-    <input placeholder="RDO Code (e.g. 015)" value={editRdo} onChange={(e: any) => setEditRdo(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 12, outline: "none" }} />
-    <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Prior Year Excess Credit</p>
-    <input placeholder="Amount (₱)" value={editCredit} onChange={(e: any) => setEditCredit(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
-    <input placeholder="From year (e.g. 2025)" value={editCreditYear} onChange={(e: any) => setEditCreditYear(e.target.value)} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 12, outline: "none" }} />
-    <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Tax Payments Made ({year})</p>
-    {(["Q1", "Q2", "Q3"] as const).map(q => {
-      const qNum = parseInt(q.replace("Q", ""));
-      const isDeleted = deletedPayments.includes(qNum);
-      return (
-        <div key={q} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-          <input
-            placeholder={`${q} payment (₱)`}
-            value={editPayments[q]}
-            onChange={(e: any) => setEditPayments((prev: any) => ({ ...prev, [q]: e.target.value }))}
-            disabled={isDeleted}
-            style={{ flex: 1, padding: "7px 10px", background: isDeleted ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: isDeleted ? "rgba(255,255,255,0.2)" : "#fff", fontSize: 12, fontFamily: "inherit", outline: "none" }}
-          />
-          {isDeleted ? (
-            <button onClick={() => setDeletedPayments((prev: any) => prev.filter((n: number) => n !== qNum))} style={{ padding: "7px 10px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 8, color: "#a5b4fc", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>Undo</button>
-          ) : (
-            <button onClick={() => clearPayment(qNum)} style={{ padding: "7px 10px", background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 8, color: "#fca5a5", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>✕</button>
-          )}
-        </div>
-      );
-    })}
-    <div style={{ display: "flex", gap: 6, marginTop: 6 }}>
-      <button onClick={saveEditClient} style={{ flex: 1, padding: "7px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Save</button>
-      <button onClick={() => { setEditingClient(null); setDeletedPayments([]); }} style={{ padding: "7px 12px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-    </div>
-  </div>
-);
-
 const MONTHS = ["JANUARY","FEBRUARY","MARCH","APRIL","MAY","JUNE","JULY","AUGUST","SEPTEMBER","OCTOBER","NOVEMBER","DECEMBER"];
 
 export default function TaxPage() {
@@ -193,10 +142,6 @@ export default function TaxPage() {
         await supabase.from("tax_payments").insert({ client_id: editingClient.id, year: parseInt(year), quarter: qNum, amount_paid: amountPaid });
       }
     }
-    setEditingClient(null);
-    setEditCredit("");
-    setEditPayments({ Q1: "", Q2: "", Q3: "" });
-    setDeletedPayments([]);
     const updatedClient = {
       ...editingClient,
       tax_type: editTaxType,
@@ -205,6 +150,10 @@ export default function TaxPage() {
       middle_name: editMiddleName.trim() || null,
       rdo_code: editRdo.trim() || null,
     };
+    setEditingClient(null);
+    setEditCredit("");
+    setEditPayments({ Q1: "", Q2: "", Q3: "" });
+    setDeletedPayments([]);
     fetchClients();
     if (selected?.id === editingClient.id) {
       setSelected(updatedClient);
@@ -226,11 +175,9 @@ export default function TaxPage() {
     const monthName = MONTHS[lastMonth - 1];
     const displayTin = `${tinMain.substring(0,3)}-${tinMain.substring(3,6)}-${tinMain.substring(6,9)}-${tinBranch}`;
     const fullName = `${lastName}, ${firstName} ${middleName}`.trim();
-
     const totalIncome = quarterForms.reduce((sum: number, f: any) => sum + (parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0), 0);
     const totalTax = quarterForms.reduce((sum: number, f: any) => sum + (parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0), 0);
 
-    // 1. Generate DAT — one D line per 2307
     const lines: string[] = [];
     lines.push(`HSAWT,H1701Q,${tinMain},${tinBranch},"","${lastName}","${firstName}","${middleName}",${period},${rdo}`);
     quarterForms.forEach((f: any, i: number) => {
@@ -252,9 +199,7 @@ export default function TaxPage() {
     datLink.click();
     URL.revokeObjectURL(datUrl);
 
-    // 2. Generate PDF
     const fmtNum = (n: number) => n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
     const tableRows = quarterForms.map((f: any, i: number) => {
       const payorTinRaw = (f?.atc_tin || f?.payor_tin || "").replace(/\D/g, "");
       const payorTinFmt = payorTinRaw.length >= 9
@@ -264,80 +209,59 @@ export default function TaxPage() {
       const atc = f?.atc || "WI120";
       const income = parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0;
       const tax = parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0;
-      return `
-        <tr>
-          <td style="text-align:center">${i + 1}</td>
-          <td>${payorTinFmt}</td>
-          <td style="text-align:center">${atc}</td>
-          <td style="text-align:center">2.00</td>
-          <td>${payorName}</td>
-          <td style="text-align:right">${fmtNum(income)}</td>
-          <td style="text-align:right">${fmtNum(tax)}</td>
-        </tr>
-      `;
+      return `<tr>
+        <td style="text-align:center">${i + 1}</td>
+        <td>${payorTinFmt}</td>
+        <td style="text-align:center">${atc}</td>
+        <td style="text-align:center">2.00</td>
+        <td>${payorName}</td>
+        <td style="text-align:right">${fmtNum(income)}</td>
+        <td style="text-align:right">${fmtNum(tax)}</td>
+      </tr>`;
     }).join("");
 
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="UTF-8">
-        <title>SAWT - ${fullName}</title>
-        <style>
-          @page { size: A4 landscape; margin: 15mm; }
-          body { font-family: Arial, sans-serif; font-size: 9pt; color: #000; }
-          .header { text-align: center; margin-bottom: 6px; }
-          .header h2 { font-size: 11pt; font-weight: bold; margin: 0; }
-          .header h3 { font-size: 10pt; font-weight: bold; margin: 2px 0; }
-          .meta { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 9pt; }
-          table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
-          th { border: 1px solid #000; padding: 4px 6px; text-align: center; background: #f0f0f0; font-size: 8pt; }
-          td { border: 1px solid #000; padding: 3px 6px; }
-          .total-row td { font-weight: bold; border-top: 2px solid #000; }
-          .grand-total { margin-top: 8px; text-align: right; font-weight: bold; font-size: 9pt; border-top: 2px solid #000; padding-top: 4px; }
-          .footer { margin-top: 16px; font-size: 8pt; }
-        </style>
-      </head>
-      <body>
-        <div class="header">
-          <h2>BIR FORM 1701Q</h2>
-          <h3>SUMMARY ALPHALIST OF WITHHOLDING TAXES (SAWT)</h3>
-        </div>
-        <div class="meta">
-          <div>
-            <strong>PAYEE'S NAME:</strong> ${fullName}<br>
-            <strong>TIN:</strong> ${displayTin}
-          </div>
-          <div style="text-align:right">
-            <strong>FOR THE MONTH OF ${monthName}, ${year}</strong>
-          </div>
-        </div>
-        <table>
-          <thead>
-            <tr>
-              <th style="width:40px">SEQ.<br>NO.</th>
-              <th style="width:120px">TAXPAYER<br>IDENTIFICATION<br>NUMBER (TIN)</th>
-              <th style="width:50px">ATC</th>
-              <th style="width:40px">RATE</th>
-              <th>CORPORATION / INDIVIDUAL<br>(Registered Name)</th>
-              <th style="width:110px">INCOME<br>PAYMENT</th>
-              <th style="width:110px">AMOUNT OF TAX<br>WITHHELD</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${tableRows}
-            <tr class="total-row">
-              <td colspan="5" style="text-align:right">PAGE TOTAL</td>
-              <td style="text-align:right">${fmtNum(totalIncome)}</td>
-              <td style="text-align:right">${fmtNum(totalTax)}</td>
-            </tr>
-          </tbody>
-        </table>
-        <div class="grand-total">GRAND TOTAL &nbsp;&nbsp;&nbsp; ${fmtNum(totalTax)}</div>
-        <div class="footer">END OF REPORT</div>
-      </body>
-      </html>
-    `;
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SAWT - ${fullName}</title>
+    <style>
+      @page { size: A4 landscape; margin: 15mm; }
+      body { font-family: Arial, sans-serif; font-size: 9pt; color: #000; }
+      .header { text-align: center; margin-bottom: 6px; }
+      .header h2 { font-size: 11pt; font-weight: bold; margin: 0; }
+      .header h3 { font-size: 10pt; font-weight: bold; margin: 2px 0; }
+      .meta { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 9pt; }
+      table { width: 100%; border-collapse: collapse; font-size: 8.5pt; }
+      th { border: 1px solid #000; padding: 4px 6px; text-align: center; background: #f0f0f0; font-size: 8pt; }
+      td { border: 1px solid #000; padding: 3px 6px; }
+      .total-row td { font-weight: bold; border-top: 2px solid #000; }
+      .grand-total { margin-top: 8px; text-align: right; font-weight: bold; font-size: 9pt; border-top: 2px solid #000; padding-top: 4px; }
+      .footer { margin-top: 16px; font-size: 8pt; }
+    </style></head><body>
+    <div class="header"><h2>BIR FORM 1701Q</h2><h3>SUMMARY ALPHALIST OF WITHHOLDING TAXES (SAWT)</h3></div>
+    <div class="meta">
+      <div><strong>PAYEE'S NAME:</strong> ${fullName}<br><strong>TIN:</strong> ${displayTin}</div>
+      <div style="text-align:right"><strong>FOR THE MONTH OF ${monthName}, ${year}</strong></div>
+    </div>
+    <table>
+      <thead><tr>
+        <th style="width:40px">SEQ.<br>NO.</th>
+        <th style="width:120px">TAXPAYER<br>IDENTIFICATION<br>NUMBER (TIN)</th>
+        <th style="width:50px">ATC</th>
+        <th style="width:40px">RATE</th>
+        <th>CORPORATION / INDIVIDUAL<br>(Registered Name)</th>
+        <th style="width:110px">INCOME<br>PAYMENT</th>
+        <th style="width:110px">AMOUNT OF TAX<br>WITHHELD</th>
+      </tr></thead>
+      <tbody>
+        ${tableRows}
+        <tr class="total-row">
+          <td colspan="5" style="text-align:right">PAGE TOTAL</td>
+          <td style="text-align:right">${fmtNum(totalIncome)}</td>
+          <td style="text-align:right">${fmtNum(totalTax)}</td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="grand-total">GRAND TOTAL &nbsp;&nbsp;&nbsp; ${fmtNum(totalTax)}</div>
+    <div class="footer">END OF REPORT</div>
+    </body></html>`;
 
     const printWindow = window.open("", "_blank", "width=900,height=600");
     if (printWindow) {
@@ -439,15 +363,6 @@ export default function TaxPage() {
   const showList = listOpen || search.length > 0;
   const activeQ = summary?.quarters.find((q: any) => q.quarter === activeQuarter);
 
-  const editFormProps = {
-    editTaxType, setEditTaxType, editCredit, setEditCredit,
-    editCreditYear, setEditCreditYear, editPayments, setEditPayments,
-    deletedPayments, clearPayment, setDeletedPayments,
-    editLastName, setEditLastName, editFirstName, setEditFirstName,
-    editMiddleName, setEditMiddleName, editRdo, setEditRdo,
-    saveEditClient, setEditingClient, year
-  };
-
   const renderClientList = (list: any[], page: number, totalPages: number, setPage: any) => (
     <div>
       {list.length === 0 ? (
@@ -465,7 +380,6 @@ export default function TaxPage() {
               Edit
             </button>
           </div>
-          {editingClient?.id === client.id && <EditForm {...editFormProps} />}
         </div>
       ))}
       {totalPages > 1 && (
@@ -487,7 +401,68 @@ export default function TaxPage() {
         body { font-family: 'Inter', sans-serif; background: #0f0f0f; }
         input, select { outline: none; }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+        .edit-drawer { position: fixed; top: 0; right: 0; height: 100vh; width: 360px; background: #1a1a1a; border-left: 0.5px solid rgba(255,255,255,0.08); z-index: 1000; display: flex; flex-direction: column; transform: translateX(100%); transition: transform 0.25s ease; overflow-y: auto; }
+        .edit-drawer.open { transform: translateX(0); }
+        .edit-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 999; opacity: 0; pointer-events: none; transition: opacity 0.25s ease; }
+        .edit-overlay.open { opacity: 1; pointer-events: all; }
       `}</style>
+
+      {/* Edit Drawer Overlay */}
+      <div className={`edit-overlay ${editingClient ? "open" : ""}`} onClick={() => { setEditingClient(null); setDeletedPayments([]); }} />
+
+      {/* Edit Drawer */}
+      <div className={`edit-drawer ${editingClient ? "open" : ""}`}>
+        <div style={{ padding: "20px 20px 0", display: "flex", alignItems: "center", justifyContent: "space-between", borderBottom: "0.5px solid rgba(255,255,255,0.08)", paddingBottom: 16, marginBottom: 0 }}>
+          <div>
+            <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Edit Client</p>
+            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{editingClient?.name}</p>
+          </div>
+          <button onClick={() => { setEditingClient(null); setDeletedPayments([]); }} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>✕</button>
+        </div>
+        <div style={{ padding: "16px 20px", flex: 1 }}>
+          <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Tax Type</p>
+          <select value={editTaxType} onChange={e => setEditTaxType(e.target.value as any)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 14, cursor: "pointer" }}>
+            <option value="8%">8% Income Tax Rate</option>
+            <option value="graduated">Graduated IT Rate</option>
+          </select>
+
+          <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Name (for SAWT)</p>
+          <input placeholder="Last Name" value={editLastName} onChange={e => setEditLastName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
+          <input placeholder="First Name" value={editFirstName} onChange={e => setEditFirstName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
+          <input placeholder="Middle Name" value={editMiddleName} onChange={e => setEditMiddleName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
+          <input placeholder="RDO Code (e.g. 015)" value={editRdo} onChange={e => setEditRdo(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 14, outline: "none" }} />
+
+          <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Prior Year Excess Credit</p>
+          <input placeholder="Amount (₱)" value={editCredit} onChange={e => setEditCredit(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
+          <input placeholder="From year (e.g. 2025)" value={editCreditYear} onChange={e => setEditCreditYear(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 14, outline: "none" }} />
+
+          <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Tax Payments Made ({year})</p>
+          {(["Q1", "Q2", "Q3"] as const).map(q => {
+            const qNum = parseInt(q.replace("Q", ""));
+            const isDeleted = deletedPayments.includes(qNum);
+            return (
+              <div key={q} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
+                <input
+                  placeholder={`${q} payment (₱)`}
+                  value={editPayments[q]}
+                  onChange={e => setEditPayments(prev => ({ ...prev, [q]: e.target.value }))}
+                  disabled={isDeleted}
+                  style={{ flex: 1, padding: "8px 10px", background: isDeleted ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: isDeleted ? "rgba(255,255,255,0.2)" : "#fff", fontSize: 12, fontFamily: "inherit", outline: "none" }}
+                />
+                {isDeleted ? (
+                  <button onClick={() => setDeletedPayments(prev => prev.filter(n => n !== qNum))} style={{ padding: "8px 10px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 8, color: "#a5b4fc", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>Undo</button>
+                ) : (
+                  <button onClick={() => clearPayment(qNum)} style={{ padding: "8px 10px", background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 8, color: "#fca5a5", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>✕</button>
+                )}
+              </div>
+            );
+          })}
+
+          <button onClick={saveEditClient} style={{ width: "100%", padding: "10px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", borderRadius: 10, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", marginTop: 16 }}>
+            Save Changes
+          </button>
+        </div>
+      </div>
 
       <main style={{ minHeight: "100vh", background: "#0f0f0f", backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%)", padding: "2rem 1.5rem", fontFamily: "'Inter', sans-serif" }}>
         <div style={{ maxWidth: 1400, margin: "0 auto" }}>
@@ -552,7 +527,6 @@ export default function TaxPage() {
                   </div>
                 </div>
               )}
-              {selected && !showList && editingClient?.id === selected.id && <EditForm {...editFormProps} />}
 
               {/* Search */}
               <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
