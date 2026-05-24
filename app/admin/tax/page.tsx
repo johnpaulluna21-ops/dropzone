@@ -16,22 +16,12 @@ import {
   type ExtractedForm,
 } from "@/lib/sawt";
 
-// ─────────────────────────────────────────────────────────────────────────────
-// app/admin/tax/page.tsx
-//
-// UI layer only. All compliance logic lives in @/lib/sawt.
-// This file: DB queries, React state, rendering.
-// ─────────────────────────────────────────────────────────────────────────────
-
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 const PAGE_SIZE = 10;
-
-
-// ── DAT Validator Modal ───────────────────────────────────────────────────────
 
 function DATValidatorModal({ onClose }: { onClose: () => void }) {
   const [results, setResults] = useState<DATValidationResult[]>([]);
@@ -80,7 +70,6 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
           </div>
           <button onClick={onClose} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>✕</button>
         </div>
-
         <div style={{ padding: "20px" }}>
           <div onDrop={e => { e.preventDefault(); processFiles(Array.from(e.dataTransfer.files)); }} onDragOver={e => e.preventDefault()} onClick={() => fileInputRef.current?.click()} style={{ border: "1.5px dashed rgba(255,255,255,0.12)", borderRadius: 14, padding: "1.5rem", textAlign: "center", cursor: "pointer", background: "rgba(255,255,255,0.02)", marginBottom: 16 }}>
             <i className="ti ti-files" style={{ fontSize: 28, color: "rgba(255,255,255,0.2)" }} />
@@ -88,7 +77,6 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>Single or multiple files accepted</p>
           </div>
           <input ref={fileInputRef} type="file" accept=".dat,.DAT,.txt,.TXT" multiple style={{ display: "none" }} onChange={e => { processFiles(Array.from(e.target.files || [])); if (fileInputRef.current) fileInputRef.current.value = ""; }} />
-
           {total > 0 && (
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, marginBottom: 14, background: passed === total ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)", border: `0.5px solid ${passed === total ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}` }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
@@ -100,7 +88,6 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
               </button>
             </div>
           )}
-
           {results.map((r, i) => (
             <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.07)", borderRadius: 12, marginBottom: 10, overflow: "hidden" }}>
               <div onClick={() => setExpanded(prev => ({ ...prev, [i]: !prev[i] }))} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", cursor: "pointer" }}>
@@ -116,7 +103,6 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
                 </span>
                 <i className={`ti ti-chevron-${expanded[i] ? "up" : "down"}`} style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", flexShrink: 0 }} />
               </div>
-
               {expanded[i] && (
                 <div style={{ borderTop: "0.5px solid rgba(255,255,255,0.06)", padding: "14px" }}>
                   {r.hInfo && (
@@ -168,9 +154,6 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
     </div>
   );
 }
-
-
-// ── Batch SAWT Modal ──────────────────────────────────────────────────────────
 
 function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm }: {
   quarter: string;
@@ -254,9 +237,6 @@ function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm
     </div>
   );
 }
-
-
-// ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function TaxPage() {
   const [sendStatus, setSendStatus] = useState("");
@@ -364,15 +344,15 @@ export default function TaxPage() {
       if (deletedPayments.includes(qNum)) continue;
       const amountPaid = parseFloat(amount) || 0;
       const { data: existing } = await supabase.from("tax_payments").select("id").eq("client_id", editingClient.id).eq("year", parseInt(year)).eq("quarter", qNum).single();
-      if (existing) { await supabase.from("tax_payments").update({ amount_paid: amountPaid }).eq("id", existing.id); }
+      if (existing) { await supabase.from("prior_year_credits").update({ amount_paid: amountPaid }).eq("id", existing.id); }
       else { await supabase.from("tax_payments").insert({ client_id: editingClient.id, year: parseInt(year), quarter: qNum, amount_paid: amountPaid }); }
     }
     const updatedClient = { ...editingClient, tax_type: editTaxType, last_name: editLastName.trim() || null, first_name: editFirstName.trim() || null, middle_name: editMiddleName.trim() || null, rdo_code: editRdo.trim() || null };
     setEditingClient(null); setEditCredit(""); setEditPayments({ Q1: "", Q2: "", Q3: "" }); setDeletedPayments([]);
     fetchClients();
     if (selected?.id === editingClient.id) { setSelected(updatedClient); computeSummary(updatedClient); }
-    }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editCredit, editCreditYear, editPayments, deletedPayments, fetchClients, selected, year]); // eslint-disable-line react-hooks/exhaustive-deps
-  // ── Single SAWT generation (download + print) ──
+  }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editCredit, editCreditYear, editPayments, deletedPayments, fetchClients, selected, year]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleGenerateSAWT = (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
     const result = generateSAWTContent(
       { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
@@ -398,13 +378,11 @@ export default function TaxPage() {
         quarterForms,
         year
       );
-
       const fullName = `${client.first_name || ""} ${client.middle_name ? client.middle_name + " " : ""}${client.last_name || ""}`.trim().toUpperCase();
       const nameParts = (client.name || "").split("/");
-const registeredName = (nameParts.length > 1 ? nameParts[1] : nameParts[0]).trim().toUpperCase();
-
+      const registeredName = (nameParts.length > 1 ? nameParts[1] : nameParts[0]).trim().toUpperCase();
       const confirmed = window.confirm(`Send SAWT to BIR eSubmission?\n\n${fullName}\nQ${quarterNum} ${year}`);
-if (!confirmed) return;
+      if (!confirmed) return;
       const resp = await fetch("/api/sawt/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -418,14 +396,17 @@ if (!confirmed) return;
           year,
         }),
       });
-
       if (resp.ok) {
-  setSendStatus(`✅ Sent: ${fullName}`);
-  setTimeout(() => setSendStatus(""), 4000);
-} else {
-  setSendStatus("❌ Failed to send. Try again.");
-  setTimeout(() => setSendStatus(""), 4000);
-}
+        setSendStatus(`Sent: ${fullName}`);
+        setTimeout(() => setSendStatus(""), 4000);
+      } else {
+        setSendStatus("Failed to send. Try again.");
+        setTimeout(() => setSendStatus(""), 4000);
+      }
+    } catch (e) {
+      setSendStatus("Failed to send. Try again.");
+      setTimeout(() => setSendStatus(""), 4000);
+    }
   };
 
   const openBatchModal = async (quarterStr: string) => {
@@ -452,7 +433,6 @@ if (!confirmed) return;
     setBatchModal({ quarter: quarterStr, clientsWithForms: result });
   };
 
-  // ── Batch generation (folder picker or fallback downloads) ──
   const runBatchGenerate = async (
     selectedClients: { client: any; forms: ExtractedForm[] }[],
     quarterStr: string,
@@ -461,13 +441,10 @@ if (!confirmed) return;
     setBatchModal(null);
     setBatchGenerating(true);
     setBatchStatus("Preparing files…");
-
     const qNum = parseInt(quarterStr.replace("Q", ""));
     const lastMonth = qNum * 3;
     const lastMonthPadded = String(lastMonth).padStart(2, "0");
     const now = new Date().toLocaleString("en-PH");
-
-    // Build summary manifest
     let summaryTxt = `BATCH SAWT GENERATION SUMMARY\nQuarter: ${quarterStr} ${year}\nFolder: ${folderName}\nGenerated: ${now}\nTotal clients: ${selectedClients.length}\n\n`;
     summaryTxt += `${"TIN".padEnd(20)} ${"CLIENT NAME".padEnd(35)} FILENAME\n${"-".repeat(80)}\n`;
     selectedClients.forEach(({ client }) => {
@@ -478,28 +455,23 @@ if (!confirmed) return;
     });
     summaryTxt += `${"-".repeat(80)}\n`;
     const summaryFilename = `BATCH_SAWT_${quarterStr}_${year}_SUMMARY.TXT`;
-
-    // Try File System Access API
     const fsSupported = typeof window !== "undefined" && "showDirectoryPicker" in window;
     let dirHandle: FileSystemDirectoryHandle | null = null;
     if (fsSupported) {
       try {
         setBatchStatus("Waiting for folder selection…");
         dirHandle = await (window as any).showDirectoryPicker({ startIn: "downloads", mode: "readwrite", suggestedName: folderName });
-      } catch {
+      } catch (e) {
         setBatchGenerating(false); setBatchStatus(""); return;
       }
     }
-
     setBatchStatus("Writing summary…");
     if (dirHandle) { await writeFileToDir(dirHandle, summaryFilename, summaryTxt, "text/plain"); }
     else { fallbackDownload(summaryFilename, summaryTxt, "text/plain"); await new Promise(r => setTimeout(r, 500)); }
-
     for (let i = 0; i < selectedClients.length; i++) {
       const { client, forms } = selectedClients[i];
       const clientLabel = (client.last_name || client.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 12);
       setBatchStatus(`Writing ${i + 1} / ${selectedClients.length}: ${clientLabel}…`);
-
       const result = generateSAWTContent(
         { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
         qNum,
@@ -508,7 +480,6 @@ if (!confirmed) return;
       );
       const htmlFilename = `SAWT-${result.datFilename.replace(".DAT", "")}-${clientLabel}.html`;
       const htmlWithPrint = result.html.replace("</body>", `<script>window.onload=function(){window.print();}<\/script></body>`);
-
       if (dirHandle) {
         await writeFileToDir(dirHandle, result.datFilename, result.datContent, "text/plain");
         await writeFileToDir(dirHandle, htmlFilename, htmlWithPrint, "text/html");
@@ -588,9 +559,9 @@ if (!confirmed) return;
         ))}
       {totalPages > 1 && (
         <div style={{ padding: "10px 16px", borderTop: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: page === 1 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: page === 1 ? "default" : "pointer", fontFamily: "inherit" }}>‹ Prev</button>
+          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: page === 1 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: page === 1 ? "default" : "pointer", fontFamily: "inherit" }}>Prev</button>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{page} / {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: page === totalPages ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: page === totalPages ? "default" : "pointer", fontFamily: "inherit" }}>Next ›</button>
+          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: page === totalPages ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: page === totalPages ? "default" : "pointer", fontFamily: "inherit" }}>Next</button>
         </div>
       )}
     </div>
@@ -621,7 +592,6 @@ if (!confirmed) return;
           <main style={{ minHeight: "100vh", background: "#0f0f0f", backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%)", padding: "2rem 1.5rem", fontFamily: "'Inter', sans-serif" }}>
             <div style={{ maxWidth: 1400, margin: "0 auto" }}>
 
-              {/* Nav */}
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "2rem" }}>
                 <div style={{ width: 38, height: 38, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
                   <i className="ti ti-calculator" style={{ color: "#fff", fontSize: 18 }} />
@@ -641,7 +611,6 @@ if (!confirmed) return;
                 </Link>
               </div>
 
-              {/* Year selector */}
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.5rem" }}>
                 <label style={{ fontSize: 13, color: "rgba(255,255,255,0.5)" }}>Tax Year:</label>
                 <select value={year} onChange={e => setYear(e.target.value)} style={{ padding: "8px 12px", background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "#fff", fontSize: 13, fontFamily: "inherit", cursor: "pointer" }}>
@@ -651,7 +620,6 @@ if (!confirmed) return;
 
               <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16 }}>
 
-                {/* Clients Panel */}
                 <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", alignSelf: "start" }}>
                   <div style={{ padding: "16px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Clients ({clients.length})</p>
@@ -705,7 +673,6 @@ if (!confirmed) return;
                   {showList && (activeFolderTab === "8%" ? renderClientList(pagedClients8, page8, totalPages8, setPage8) : renderClientList(pagedClientsGrad, pageGrad, totalPagesGrad, setPageGrad))}
                 </div>
 
-                {/* Summary Panel */}
                 <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem", overflowY: "auto" }}>
                   {loading ? (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
@@ -751,26 +718,27 @@ if (!confirmed) return;
                           <div style={{ padding: "20px", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 16, marginBottom: "1.5rem" }}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
                               <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{activeQ.quarter} {year} — Detail</p>
-                              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                                <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: activeQ.forms > 0 ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.05)", color: activeQ.forms > 0 ? "#6ee7b7" : "rgba(255,255,255,0.3)", border: `0.5px solid ${activeQ.forms > 0 ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.08)"}` }}>
-                                  {activeQ.forms} 2307{activeQ.forms !== 1 ? "s" : ""}
-                                </span>
-                                {activeQ.forms > 0 && (
-  <div style={{ display: "flex", gap: 6 }}>
-    <button onClick={() => handleGenerateSAWT(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 8, color: "#6ee7b7", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
-      <i className="ti ti-file-download" style={{ fontSize: 12 }} /> Generate SAWT
-    </button>
-    <button onClick={() => handleSendEmail(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(59,130,246,0.15)", border: "0.5px solid rgba(59,130,246,0.3)", borderRadius: 8, color: "#93c5fd", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
-      <i className="ti ti-send" style={{ fontSize: 12 }} /> Send to eSubmission
-    </button>
-  </div>
-  {sendStatus && (
-  <div style={{ marginTop: 8, fontSize: 11, color: sendStatus.startsWith("✅") ? "#6ee7b7" : "#fca5a5" }}>
-    {sendStatus}
-  </div>
-)}
-)}
-                                
+                              <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
+                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                  <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: activeQ.forms > 0 ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.05)", color: activeQ.forms > 0 ? "#6ee7b7" : "rgba(255,255,255,0.3)", border: `0.5px solid ${activeQ.forms > 0 ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.08)"}` }}>
+                                    {activeQ.forms} 2307{activeQ.forms !== 1 ? "s" : ""}
+                                  </span>
+                                  {activeQ.forms > 0 && (
+                                    <div style={{ display: "flex", gap: 6 }}>
+                                      <button onClick={() => handleGenerateSAWT(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 8, color: "#6ee7b7", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+                                        <i className="ti ti-file-download" style={{ fontSize: 12 }} /> Generate SAWT
+                                      </button>
+                                      <button onClick={() => handleSendEmail(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(59,130,246,0.15)", border: "0.5px solid rgba(59,130,246,0.3)", borderRadius: 8, color: "#93c5fd", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+                                        <i className="ti ti-send" style={{ fontSize: 12 }} /> Send to eSubmission
+                                      </button>
+                                    </div>
+                                  )}
+                                </div>
+                                {sendStatus && (
+                                  <div style={{ fontSize: 11, color: "#6ee7b7" }}>
+                                    {sendStatus}
+                                  </div>
+                                )}
                               </div>
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
@@ -854,7 +822,6 @@ if (!confirmed) return;
           </main>
         </div>
 
-        {/* Edit Drawer */}
         <div style={{ position: "fixed", top: 0, right: 0, height: "100vh", width: "320px", background: "#1a1a1a", borderLeft: "0.5px solid rgba(255,255,255,0.08)", zIndex: 100, display: "flex", flexDirection: "column", transform: drawerOpen ? "translateX(0)" : "translateX(100%)", transition: "transform 0.25s ease", overflowY: "auto" }}>
           <div style={{ padding: "20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ minWidth: 0, flex: 1 }}>
