@@ -341,18 +341,34 @@ function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm
   yearStr: string;
   clientsWithForms: { client: any; forms: any[] }[];
   onClose: () => void;
-  onConfirm: (selected: { client: any; forms: any[] }[], quarter: string) => void;
+  onConfirm: (selected: { client: any; forms: any[] }[], quarter: string, folderName: string) => void;
 }) {
+  const quarterNum = parseInt(quarter.replace("Q", ""));
   const [checked, setChecked] = useState<Record<string, boolean>>(() => {
     const init: Record<string, boolean> = {};
     clientsWithForms.forEach(c => { init[c.client.id] = true; });
     return init;
   });
+  const [folderName, setFolderName] = useState(`SAWT-${quarter}-${yearStr}`);
+
   const selectedCount = Object.values(checked).filter(Boolean).length;
   const selectedClients = clientsWithForms.filter(c => checked[c.client.id]);
+
+  const inputStyle: React.CSSProperties = {
+    width: "100%", padding: "8px 10px",
+    background: "rgba(255,255,255,0.06)",
+    border: "0.5px solid rgba(255,255,255,0.12)",
+    borderRadius: 8, color: "#fff", fontSize: 12,
+    fontFamily: "inherit", outline: "none",
+  };
+
+  const fsSupportedHint = typeof window !== "undefined" && "showDirectoryPicker" in window;
+
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
       <div style={{ width: "100%", maxWidth: 560, background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden" }}>
+
+        {/* Header */}
         <div style={{ padding: "18px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{ width: 34, height: 34, background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -365,6 +381,8 @@ function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm
           </div>
           <button onClick={onClose} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>✕</button>
         </div>
+
+        {/* Select all / none */}
         <div style={{ padding: "10px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{selectedCount} of {clientsWithForms.length} clients selected</p>
           <div style={{ display: "flex", gap: 8 }}>
@@ -372,7 +390,9 @@ function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm
             <button onClick={() => { const none: Record<string, boolean> = {}; clientsWithForms.forEach(c => { none[c.client.id] = false; }); setChecked(none); }} style={{ padding: "3px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>None</button>
           </div>
         </div>
-        <div style={{ maxHeight: 320, overflowY: "auto", padding: "8px 0" }}>
+
+        {/* Client checklist */}
+        <div style={{ maxHeight: 260, overflowY: "auto", padding: "8px 0" }}>
           {clientsWithForms.length === 0 ? (
             <p style={{ padding: "2rem", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>No clients have 2307s for {quarter} {yearStr}.</p>
           ) : clientsWithForms.map(({ client, forms }) => (
@@ -387,20 +407,72 @@ function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm
             </div>
           ))}
         </div>
+
+        {/* ── Folder name input ─────────────────────────────────────── */}
+        <div style={{ padding: "14px 20px", borderTop: "0.5px solid rgba(255,255,255,0.06)" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+            <i className="ti ti-folder" style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }} />
+            <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)" }}>Output folder name</p>
+            {!fsSupportedHint && (
+              <span style={{ fontSize: 10, padding: "2px 7px", background: "rgba(251,191,36,0.1)", border: "0.5px solid rgba(251,191,36,0.25)", borderRadius: 20, color: "#fcd34d" }}>
+                Falls back to Downloads
+              </span>
+            )}
+          </div>
+          <input
+            value={folderName}
+            onChange={e => setFolderName(e.target.value.replace(/[/\\]/g, "-"))}
+            placeholder={`SAWT-${quarter}-${yearStr}`}
+            style={inputStyle}
+          />
+          {fsSupportedHint ? (
+            <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 5 }}>
+              You'll be prompted to pick or create a folder — all files will be saved there.
+            </p>
+          ) : (
+            <p style={{ fontSize: 10, color: "rgba(251,191,36,0.5)", marginTop: 5 }}>
+              Your browser doesn't support folder picking. Files will download to your default Downloads folder with the folder name as a filename prefix.
+            </p>
+          )}
+        </div>
+
+        {/* Footer */}
         <div style={{ padding: "14px 20px", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
           <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-            Will generate: <span style={{ color: "#a5b4fc", fontWeight: 600 }}>{selectedCount} DAT file{selectedCount !== 1 ? "s" : ""}</span>, <span style={{ color: "#a5b4fc", fontWeight: 600 }}>{selectedCount} PDF{selectedCount !== 1 ? "s" : ""}</span>, 1 summary TXT
+            Will generate: <span style={{ color: "#a5b4fc", fontWeight: 600 }}>{selectedCount} DAT</span>, <span style={{ color: "#a5b4fc", fontWeight: 600 }}>{selectedCount} HTML</span>, <span style={{ color: "#a5b4fc", fontWeight: 600 }}>1 summary TXT</span>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={onClose} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-            <button onClick={() => selectedCount > 0 && onConfirm(selectedClients, quarter)} disabled={selectedCount === 0} style={{ padding: "8px 16px", background: selectedCount > 0 ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 10, color: selectedCount > 0 ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 13, fontWeight: 600, cursor: selectedCount > 0 ? "pointer" : "default", fontFamily: "inherit" }}>
-              <i className="ti ti-file-download" style={{ fontSize: 13 }} /> Generate {selectedCount > 0 ? `(${selectedCount})` : ""}
+            <button
+              onClick={() => selectedCount > 0 && onConfirm(selectedClients, quarter, folderName.trim() || `SAWT-${quarter}-${yearStr}`)}
+              disabled={selectedCount === 0}
+              style={{ padding: "8px 16px", background: selectedCount > 0 ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 10, color: selectedCount > 0 ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 13, fontWeight: 600, cursor: selectedCount > 0 ? "pointer" : "default", fontFamily: "inherit" }}
+            >
+              <i className="ti ti-folder-down" style={{ fontSize: 13 }} /> Generate {selectedCount > 0 ? `(${selectedCount})` : ""}
             </button>
           </div>
         </div>
       </div>
     </div>
   );
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+async function writeFileToDir(dirHandle: FileSystemDirectoryHandle, filename: string, content: string, type: string) {
+  const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(new Blob([content], { type }));
+  await writable.close();
+}
+
+function fallbackDownload(filename: string, content: string, type: string) {
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 // ── Main Page ────────────────────────────────────────────────────────────────
@@ -439,6 +511,7 @@ export default function TaxPage() {
   const [showValidator, setShowValidator] = useState(false);
   const [batchModal, setBatchModal] = useState<{ quarter: string; clientsWithForms: { client: any; forms: any[] }[] } | null>(null);
   const [batchGenerating, setBatchGenerating] = useState(false);
+  const [batchStatus, setBatchStatus] = useState("");
 
   useEffect(() => { fetchClients(); }, []);
   useEffect(() => { setPage8(1); setPageGrad(1); }, [search]);
@@ -737,14 +810,25 @@ export default function TaxPage() {
     setBatchModal({ quarter: quarterStr, clientsWithForms: result });
   };
 
-  const runBatchGenerate = async (selected: { client: any; forms: any[] }[], quarterStr: string) => {
+  // ── Batch generate with File System Access API ──────────────────────────
+  const runBatchGenerate = async (
+    selected: { client: any; forms: any[] }[],
+    quarterStr: string,
+    folderName: string
+  ) => {
+    setBatchModal(null);
     setBatchGenerating(true);
+    setBatchStatus("Preparing files…");
+
     const qNum = parseInt(quarterStr.replace("Q", ""));
     const lastMonth = qNum * 3;
     const lastMonthPadded = String(lastMonth).padStart(2, "0");
     const now = new Date().toLocaleString("en-PH");
+
+    // Build summary TXT
     let summaryTxt = `BATCH SAWT GENERATION SUMMARY\n`;
     summaryTxt += `Quarter: ${quarterStr} ${year}\n`;
+    summaryTxt += `Folder: ${folderName}\n`;
     summaryTxt += `Generated: ${now}\n`;
     summaryTxt += `Total clients: ${selected.length}\n\n`;
     summaryTxt += `${"TIN".padEnd(20)} ${"CLIENT NAME".padEnd(35)} FILENAME\n`;
@@ -759,37 +843,64 @@ export default function TaxPage() {
       summaryTxt += `${displayTin.padEnd(20)} ${fullName.substring(0, 34).padEnd(35)} ${datFilename}\n`;
     });
     summaryTxt += `${"-".repeat(80)}\n`;
-    const summaryBlob = new Blob([summaryTxt], { type: "text/plain" });
-    const summaryUrl = URL.createObjectURL(summaryBlob);
-    const summaryLink = document.createElement("a");
-    summaryLink.href = summaryUrl;
-    summaryLink.download = `BATCH_SAWT_${quarterStr}_${year}_SUMMARY.TXT`;
-    summaryLink.click();
-    URL.revokeObjectURL(summaryUrl);
-    for (let i = 0; i < selected.length; i++) {
-      await new Promise(resolve => setTimeout(resolve, i === 0 ? 500 : 1200));
-      const { client, forms } = selected[i];
-      const { datContent, datFilename, html } = buildSAWTContent(client, qNum, forms, year);
-      const datBlob = new Blob([datContent], { type: "text/plain" });
-      const datUrl = URL.createObjectURL(datBlob);
-      const datLink = document.createElement("a");
-      datLink.href = datUrl;
-      datLink.download = datFilename;
-      datLink.click();
-      URL.revokeObjectURL(datUrl);
-      await new Promise(resolve => setTimeout(resolve, 400));
-      const safeName = (client.last_name || client.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 12);
-      const htmlFilename = `SAWT-${datFilename.replace(".DAT","")}-${safeName}.html`;
-      const htmlWithPrint = html.replace("</body>", "<script>window.onload=function(){window.print();}<\/script></body>");
-      const htmlBlob = new Blob([htmlWithPrint], { type: "text/html" });
-      const htmlUrl = URL.createObjectURL(htmlBlob);
-      const htmlLink = document.createElement("a");
-      htmlLink.href = htmlUrl;
-      htmlLink.download = htmlFilename;
-      htmlLink.click();
-      URL.revokeObjectURL(htmlUrl);
+
+    const summaryFilename = `BATCH_SAWT_${quarterStr}_${year}_SUMMARY.TXT`;
+
+    // ── Try File System Access API ──────────────────────────────────────
+    const fsSupported = typeof window !== "undefined" && "showDirectoryPicker" in window;
+    let dirHandle: FileSystemDirectoryHandle | null = null;
+
+    if (fsSupported) {
+      try {
+        setBatchStatus("Waiting for folder selection…");
+        dirHandle = await (window as any).showDirectoryPicker({
+          startIn: "downloads",
+          mode: "readwrite",
+          suggestedName: folderName,
+        });
+      } catch {
+        // User cancelled picker — abort entirely
+        setBatchGenerating(false);
+        setBatchStatus("");
+        return;
+      }
     }
+
+    // ── Write / download summary ────────────────────────────────────────
+    setBatchStatus(`Writing summary…`);
+    if (dirHandle) {
+      await writeFileToDir(dirHandle, summaryFilename, summaryTxt, "text/plain");
+    } else {
+      fallbackDownload(summaryFilename, summaryTxt, "text/plain");
+      await new Promise(r => setTimeout(r, 500));
+    }
+
+    // ── Write / download per-client files ───────────────────────────────
+    for (let i = 0; i < selected.length; i++) {
+      const { client, forms } = selected[i];
+      const clientLabel = (client.last_name || client.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 12);
+      setBatchStatus(`Writing ${i + 1} / ${selected.length}: ${clientLabel}…`);
+
+      const { datContent, datFilename, html } = buildSAWTContent(client, qNum, forms, year);
+
+      const safeName = clientLabel;
+      const htmlFilename = `SAWT-${datFilename.replace(".DAT", "")}-${safeName}.html`;
+      const htmlWithPrint = html.replace("</body>", `<script>window.onload=function(){window.print();}<\/script></body>`);
+
+      if (dirHandle) {
+        await writeFileToDir(dirHandle, datFilename, datContent, "text/plain");
+        await writeFileToDir(dirHandle, htmlFilename, htmlWithPrint, "text/html");
+      } else {
+        // fallback: prefix filenames with folderName so they're grouped
+        fallbackDownload(`${folderName}_${datFilename}`, datContent, "text/plain");
+        await new Promise(r => setTimeout(r, 400));
+        fallbackDownload(`${folderName}_${htmlFilename}`, htmlWithPrint, "text/html");
+        await new Promise(r => setTimeout(r, 800));
+      }
+    }
+
     setBatchGenerating(false);
+    setBatchStatus("");
   };
 
   const computeSummary = async (client: any) => {
@@ -937,7 +1048,7 @@ export default function TaxPage() {
       {batchGenerating && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
           <i className="ti ti-loader-2" style={{ fontSize: 16, color: "#a5b4fc" }} />
-          <p style={{ fontSize: 13, color: "#fff" }}>Generating batch SAWT files...</p>
+          <p style={{ fontSize: 13, color: "#fff" }}>{batchStatus || "Generating batch SAWT files…"}</p>
         </div>
       )}
 
