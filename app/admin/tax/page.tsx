@@ -197,8 +197,19 @@ export default function TaxPage() {
     setEditCredit("");
     setEditPayments({ Q1: "", Q2: "", Q3: "" });
     setDeletedPayments([]);
+    const updatedClient = {
+      ...editingClient,
+      tax_type: editTaxType,
+      last_name: editLastName.trim() || null,
+      first_name: editFirstName.trim() || null,
+      middle_name: editMiddleName.trim() || null,
+      rdo_code: editRdo.trim() || null,
+    };
     fetchClients();
-    if (selected?.id === editingClient.id) computeSummary({ ...editingClient, tax_type: editTaxType });
+    if (selected?.id === editingClient.id) {
+      setSelected(updatedClient);
+      computeSummary(updatedClient);
+    }
   }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editCredit, editCreditYear, editPayments, deletedPayments, year, selected]);
 
   const generateSAWT = async (client: any, quarterNum: number, quarterForms: any[]) => {
