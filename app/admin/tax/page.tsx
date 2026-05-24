@@ -202,7 +202,7 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
   const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", outline: "none" };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "2rem 1rem", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "2rem 1rem", overflowY: "auto" }}>
       <div style={{ width: "100%", maxWidth: 760, background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden" }}>
         {/* Header */}
         <div style={{ padding: "18px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -368,6 +368,12 @@ export default function TaxPage() {
   const [activeQuarter, setActiveQuarter] = useState("Q1");
   const [activeFolderTab, setActiveFolderTab] = useState<"8%" | "graduated">("8%");
   const [showValidator, setShowValidator] = useState(false);
+
+  useEffect(() => {
+    if (showValidator) document.body.classList.add("modal-open");
+    else document.body.classList.remove("modal-open");
+    return () => document.body.classList.remove("modal-open");
+  }, [showValidator]);
 
   useEffect(() => { fetchClients(); }, []);
   useEffect(() => { setPage8(1); setPageGrad(1); }, [search]);
@@ -725,6 +731,7 @@ export default function TaxPage() {
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background: #0f0f0f; overflow-x: auto; }
+        body.modal-open { overflow: hidden; }
         input, select { outline: none; }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
       `}</style>
