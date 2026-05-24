@@ -79,14 +79,18 @@ CRITICAL TIN EXTRACTION RULES:
   "payor_name": "",
   "payor_tin": "(extract full TIN including all trailing zeros)",
   "payor_address": "",
-  "atc": "",
+  "atc": "(e.g. WI120, WI157, WI158, WI160 — read from the ATC box on the form)",
   "month_1_income": null,
   "month_2_income": null,
   "month_3_income": null,
   "total_income": null,
   "total_tax_withheld": null
 }
-
+ATC EXTRACTION RULES:
+- The ATC (Alphanumeric Tax Code) appears in a labeled box on the form, usually near the income/tax section
+- Common values: WI157 (1%), WI120 (2%), WI158 (5%), WI160 (10%), WI161 (15%), WI385 (7.5%)
+- ALWAYS extract this field — do NOT leave it blank or omit it
+- If you cannot read it clearly, return your best guess based on the withholding rate
 IMPORTANT: The income amount appears in only ONE of the three month columns:
 - If amount is in "1st Month of the Quarter" column → put in month_1_income, leave others null
 - If amount is in "2nd Month of the Quarter" column → put in month_2_income, leave others null

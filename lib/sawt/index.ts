@@ -234,7 +234,32 @@ export function parseCSVLine(line: string): string[] {
   return fields;
 }
 
+// ── 4b. ATC MAP & FALLBACK ────────────────────────────────────────────────────
+// If Claude omits the atc field, derive it from the effective withholding rate.
+// Rate is computed as (tax / income * 100), rounded to nearest whole percent.
+// Source: BIR Revenue Regulations on creditable withholding tax.
 
+export const ATC_MAP: Record<number, string> = {
+  1:  "WI157",   // 1%  — income payments to contractors/subcontractors (small)
+  2:  "WI120",   // 2%  — income payments to contractors/subcontractors (general)
+  5:  "WI158",   // 5%  — professionals, talent fees
+  10: "WI160",   // 10% — professionals (>720k), rental
+  15: "WI161",   // 15% — certain income payments
+};
+
+/**
+ * Derive ATC from the effective withholding rate when atc field is missing.
+ * Falls back to WI120 (2%) if rate doesn't match any known entry.
+ */
+export function deriveAtc(income: number, tax: number, rawAtc?: string): string {
+  // Use whatever Claude extracted if it looks valid
+  if (rawAtc && /^[A-Z]{2}\d{3,4}$/.test(rawAtc.trim())) {
+    return rawAtc.trim();
+  }
+  if (income <= 0 || tax <= 0) return "WI120";
+  const rate = Math.round((tax / income) * 100);
+  return ATC_MAP[rate] ?? "WI120";
+}
 // ── 5. PAYOR CONSOLIDATION ────────────────────────────────────────────────────
 // BIR rule: one D line per payor TIN per SAWT.
 // Multiple 2307s from the same payor must be summed into a single D line.
@@ -254,7 +279,7 @@ export function buildPayorMap(quarterForms: ExtractedForm[]): Map<string, PayorE
       .replace(/\.$/, "")
       .trim();
 
-    const atc = f?.atc || "WI120";
+    const atc = deriveAtc(income, tax, f?.atc);
     const income = parseAmount(f?.total_income);
     const tax = parseAmount(f?.total_tax_withheld);
 
