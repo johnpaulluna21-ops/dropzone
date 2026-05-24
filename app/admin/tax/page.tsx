@@ -721,8 +721,13 @@ export default function TaxPage() {
                   <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>BIR 1701Q — Income Tax Compliance</p>
                 </div>
                 <button onClick={() => openBatchModal(activeQuarter)} disabled={batchGenerating} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.1)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, cursor: batchGenerating ? "default" : "pointer", fontFamily: "inherit", opacity: batchGenerating ? 0.5 : 1 }}>
-                  <i className="ti ti-files" style={{ fontSize: 14 }} /> Batch SAWT
-                </button>
+  <i className="ti ti-files" style={{ fontSize: 14 }} /> Batch SAWT
+</button>
+{batchEmailClients.length > 0 && (
+  <button onClick={handleBatchSendEmail} disabled={batchEmailSending} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(59,130,246,0.15)", border: "0.5px solid rgba(59,130,246,0.4)", borderRadius: 10, color: "#93c5fd", fontSize: 13, fontWeight: 600, cursor: batchEmailSending ? "default" : "pointer", fontFamily: "inherit", opacity: batchEmailSending ? 0.5 : 1 }}>
+    <i className="ti ti-send" style={{ fontSize: 14 }} /> Send All ({batchEmailClients.length})
+  </button>
+)}
                 <button onClick={() => setShowValidator(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.1)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                   <i className="ti ti-shield-check" style={{ fontSize: 14 }} /> Validate DAT
                 </button>
