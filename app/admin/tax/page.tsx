@@ -259,6 +259,7 @@ function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function TaxPage() {
+  const [sendStatus, setSendStatus] = useState("");
   const [clients, setClients] = useState<any[]>([]);
   const [selected, setSelected] = useState<any | null>(null);
   const [summary, setSummary] = useState<any | null>(null);
@@ -399,8 +400,11 @@ export default function TaxPage() {
       );
 
       const fullName = `${client.first_name || ""} ${client.middle_name ? client.middle_name + " " : ""}${client.last_name || ""}`.trim().toUpperCase();
-      const registeredName = (client.name || fullName).toUpperCase();
+      const nameParts = (client.name || "").split("/");
+const registeredName = (nameParts.length > 1 ? nameParts[1] : nameParts[0]).trim().toUpperCase();
 
+      const confirmed = window.confirm(`Send SAWT to BIR eSubmission?\n\n${fullName}\nQ${quarterNum} ${year}`);
+if (!confirmed) return;
       const resp = await fetch("/api/sawt/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -416,13 +420,12 @@ export default function TaxPage() {
       });
 
       if (resp.ok) {
-        alert(`✅ Sent to eSubmission: ${fullName}`);
-      } else {
-        alert("❌ Failed to send email. Please try again.");
-      }
-    } catch {
-      alert("❌ Error sending email.");
-    }
+  setSendStatus(`✅ Sent: ${fullName}`);
+  setTimeout(() => setSendStatus(""), 4000);
+} else {
+  setSendStatus("❌ Failed to send. Try again.");
+  setTimeout(() => setSendStatus(""), 4000);
+}
   };
 
   const openBatchModal = async (quarterStr: string) => {
@@ -761,6 +764,11 @@ export default function TaxPage() {
       <i className="ti ti-send" style={{ fontSize: 12 }} /> Send to eSubmission
     </button>
   </div>
+  {sendStatus && (
+  <div style={{ marginTop: 8, fontSize: 11, color: sendStatus.startsWith("✅") ? "#6ee7b7" : "#fca5a5" }}>
+    {sendStatus}
+  </div>
+)}
 )}
                                 
                               </div>
