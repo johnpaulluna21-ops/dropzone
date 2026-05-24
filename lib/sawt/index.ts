@@ -279,9 +279,9 @@ export function buildPayorMap(quarterForms: ExtractedForm[]): Map<string, PayorE
       .replace(/\.$/, "")
       .trim();
 
-    const atc = deriveAtc(income, tax, f?.atc);
     const income = parseAmount(f?.total_income);
     const tax = parseAmount(f?.total_tax_withheld);
+    const atc = deriveAtc(income, tax, f?.atc);
 
     if (payorMap.has(payorTin)) {
       const existing = payorMap.get(payorTin)!;
