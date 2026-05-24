@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     await transporter.sendMail({
       from: process.env.GMAIL_USER,
-      to: "esubmission@bir.gov.ph",
+      to: process.env.GMAIL_USER,
       subject,
       text: body,
       attachments: [
