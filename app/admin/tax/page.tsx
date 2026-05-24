@@ -235,8 +235,8 @@ function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm
           </div>
           <input value={folderName} onChange={e => setFolderName(e.target.value.replace(/[/\\]/g, "-"))} placeholder={`SAWT-${quarter}-${yearStr}`} style={inputStyle} />
           {fsSupportedHint
-            ? <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 5 }}>You'll be prompted to pick or create a folder — all files will be saved there.</p>
-            : <p style={{ fontSize: 10, color: "rgba(251,191,36,0.5)", marginTop: 5 }}>Your browser doesn't support folder picking. Files will download to Downloads with the folder name as a filename prefix.</p>
+            ? <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 5 }}>You&apos;ll be prompted to pick or create a folder — all files will be saved there.</p>
+            : <p style={{ fontSize: 10, color: "rgba(251,191,36,0.5)", marginTop: 5 }}>Your browser doesn&apos;t support folder picking. Files will download to Downloads with the folder name as a filename prefix.</p>
           }
         </div>
         <div style={{ padding: "14px 20px", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
