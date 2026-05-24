@@ -399,7 +399,7 @@ export default function TaxPage() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: #0f0f0f; overflow-x: hidden; }
+        body { font-family: 'Inter', sans-serif; background: #0f0f0f; overflow-x: auto; }
         input, select { outline: none; }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
       `}</style>
@@ -407,7 +407,7 @@ export default function TaxPage() {
       <div style={{ display: "flex", minHeight: "100vh", transition: "all 0.25s ease" }}>
 
         {/* Main Content — shrinks when drawer opens */}
-        <div style={{ flex: 1, minWidth: 0, transition: "margin-right 0.25s ease", marginRight: drawerOpen ? "320px" : "0" }}>
+        <div style={{ flex: 1, minWidth: drawerOpen ? "900px" : "0", transition: "margin-right 0.25s ease", marginRight: drawerOpen ? "320px" : "0" }}>
           <main style={{ minHeight: "100vh", background: "#0f0f0f", backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%)", padding: "2rem 1.5rem", fontFamily: "'Inter', sans-serif" }}>
             <div style={{ maxWidth: 1400, margin: "0 auto" }}>
 
