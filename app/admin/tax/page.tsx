@@ -202,7 +202,7 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
   const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", outline: "none" };
 
   return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "2rem 1rem", overflowY: "auto" }}>
+    <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "2rem 1rem", overflowY: "auto" }}>
       <div style={{ width: "100%", maxWidth: 760, background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden" }}>
         {/* Header */}
         <div style={{ padding: "18px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
@@ -334,6 +334,75 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+
+// ── Batch SAWT Confirmation Modal ────────────────────────────────────────────
+function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm }: {
+  quarter: string;
+  yearStr: string;
+  clientsWithForms: { client: any; forms: any[] }[];
+  onClose: () => void;
+  onConfirm: (selected: { client: any; forms: any[] }[], quarter: string) => void;
+}) {
+  const [checked, setChecked] = useState<Record<string, boolean>>(() => {
+    const init: Record<string, boolean> = {};
+    clientsWithForms.forEach(c => { init[c.client.id] = true; });
+    return init;
+  });
+  const selectedCount = Object.values(checked).filter(Boolean).length;
+  const selectedClients = clientsWithForms.filter(c => checked[c.client.id]);
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
+      <div style={{ width: "100%", maxWidth: 560, background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden" }}>
+        <div style={{ padding: "18px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 34, height: 34, background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
+              <i className="ti ti-files" style={{ fontSize: 16, color: "#a5b4fc" }} />
+            </div>
+            <div>
+              <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Batch Generate SAWT</p>
+              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{quarter} {yearStr} — select clients to include</p>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>✕</button>
+        </div>
+        <div style={{ padding: "10px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{selectedCount} of {clientsWithForms.length} clients selected</p>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={() => { const all: Record<string, boolean> = {}; clientsWithForms.forEach(c => { all[c.client.id] = true; }); setChecked(all); }} style={{ padding: "3px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Select All</button>
+            <button onClick={() => { const none: Record<string, boolean> = {}; clientsWithForms.forEach(c => { none[c.client.id] = false; }); setChecked(none); }} style={{ padding: "3px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>None</button>
+          </div>
+        </div>
+        <div style={{ maxHeight: 320, overflowY: "auto", padding: "8px 0" }}>
+          {clientsWithForms.length === 0 ? (
+            <p style={{ padding: "2rem", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>No clients have 2307s for {quarter} {yearStr}.</p>
+          ) : clientsWithForms.map(({ client, forms }) => (
+            <div key={client.id} onClick={() => setChecked(prev => ({ ...prev, [client.id]: !prev[client.id] }))} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 20px", cursor: "pointer", background: checked[client.id] ? "rgba(99,102,241,0.06)" : "transparent", borderBottom: "0.5px solid rgba(255,255,255,0.04)", transition: "background 0.15s" }}>
+              <div style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${checked[client.id] ? "#6366f1" : "rgba(255,255,255,0.2)"}`, background: checked[client.id] ? "#6366f1" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
+                {checked[client.id] && <i className="ti ti-check" style={{ fontSize: 11, color: "#fff" }} />}
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 12, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{client.name}</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{client.tin || "No TIN"} · {forms.length} 2307{forms.length !== 1 ? "s" : ""}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+        <div style={{ padding: "14px 20px", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
+          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+            Will generate: <span style={{ color: "#a5b4fc", fontWeight: 600 }}>{selectedCount} DAT file{selectedCount !== 1 ? "s" : ""}</span>, <span style={{ color: "#a5b4fc", fontWeight: 600 }}>{selectedCount} PDF{selectedCount !== 1 ? "s" : ""}</span>, 1 summary TXT
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button onClick={onClose} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+            <button onClick={() => selectedCount > 0 && onConfirm(selectedClients, quarter)} disabled={selectedCount === 0} style={{ padding: "8px 16px", background: selectedCount > 0 ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 10, color: selectedCount > 0 ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 13, fontWeight: 600, cursor: selectedCount > 0 ? "pointer" : "default", fontFamily: "inherit" }}>
+              <i className="ti ti-file-download" style={{ fontSize: 13 }} /> Generate {selectedCount > 0 ? `(${selectedCount})` : ""}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ────────────────────────────────────────────────────────────────
 export default function TaxPage() {
   const [clients, setClients] = useState<any[]>([]);
@@ -368,12 +437,8 @@ export default function TaxPage() {
   const [activeQuarter, setActiveQuarter] = useState("Q1");
   const [activeFolderTab, setActiveFolderTab] = useState<"8%" | "graduated">("8%");
   const [showValidator, setShowValidator] = useState(false);
-
-  useEffect(() => {
-    if (showValidator) document.body.classList.add("modal-open");
-    else document.body.classList.remove("modal-open");
-    return () => document.body.classList.remove("modal-open");
-  }, [showValidator]);
+  const [batchModal, setBatchModal] = useState<{ quarter: string; clientsWithForms: { client: any; forms: any[] }[] } | null>(null);
+  const [batchGenerating, setBatchGenerating] = useState(false);
 
   useEffect(() => { fetchClients(); }, []);
   useEffect(() => { setPage8(1); setPageGrad(1); }, [search]);
@@ -603,6 +668,130 @@ export default function TaxPage() {
     }
   };
 
+  const buildSAWTContent = (client: any, quarterNum: number, quarterForms: any[], yearStr: string) => {
+    const tin = (client.tin || "").replace(/\D/g, "");
+    const tinMain = tin.substring(0, 9).padEnd(9, "0");
+    const tinBranch = tin.substring(9, 13).padEnd(4, "0");
+    const lastName = client.last_name || "";
+    const firstName = client.first_name || "";
+    const middleName = client.middle_name || "";
+    const rdo = client.rdo_code || "000";
+    const lastMonth = quarterNum * 3;
+    const lastMonthPadded = String(lastMonth).padStart(2, "0");
+    const period = `${lastMonthPadded}/${yearStr}`;
+    const monthName = MONTHS[lastMonth - 1];
+    const displayTin = `${tinMain.substring(0,3)}-${tinMain.substring(3,6)}-${tinMain.substring(6,9)}-${tinBranch}`;
+    const fullName = `${lastName}, ${firstName} ${middleName}`.trim();
+    const totalIncome = quarterForms.reduce((sum: number, f: any) => sum + (parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0), 0);
+    const totalTax = quarterForms.reduce((sum: number, f: any) => sum + (parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0), 0);
+    const lines: string[] = [];
+    lines.push(`HSAWT,H1701Q,${tinMain},${tinBranch},"","${lastName}","${firstName}","${middleName}",${period},${rdo}`);
+    quarterForms.forEach((f: any, i: number) => {
+      const payorTin = (f?.atc_tin || f?.payor_tin || "").replace(/\D/g, "").substring(0, 9).padEnd(9, "0");
+      const payorName = (f?.payor_name || f?.client_name || "").toUpperCase().replace(/"/g, "").replace(/\.$/, "").trim();
+      const atc = f?.atc || "WI120";
+      const income = parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0;
+      const tax = parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0;
+      const rate = income > 0 ? parseFloat((tax / income * 100).toFixed(2)) : 2.00;
+      lines.push(`DSAWT,D1701Q,${i + 1},${payorTin},0000,"${payorName}",,,,${period},,${atc},${rate.toFixed(2)},${income.toFixed(2)},${tax.toFixed(2)}`);
+    });
+    lines.push(`CSAWT,C1701Q,${tinMain},${tinBranch},${period},${totalIncome.toFixed(2)},${totalTax.toFixed(2)}`);
+    const datContent = lines.join("\r\n") + "\r\n";
+    const datFilename = `${tinMain}${tinBranch}${lastMonthPadded}${yearStr}1701Q.DAT`;
+    const fmtNum = (n: number) => n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const tableRows = quarterForms.map((f: any, i: number) => {
+      const payorTinRaw = (f?.atc_tin || f?.payor_tin || "").replace(/\D/g, "");
+      const payorTinFmt = payorTinRaw.length >= 9 ? `${payorTinRaw.substring(0,3)}-${payorTinRaw.substring(3,6)}-${payorTinRaw.substring(6,9)}-${payorTinRaw.substring(9,13) || "0000"}` : payorTinRaw;
+      const payorName = (f?.payor_name || f?.client_name || "").toUpperCase().replace(/\.$/, "").trim();
+      const atc = f?.atc || "WI120";
+      const income = parseFloat(String(f?.total_income || "0").replace(/,/g, "")) || 0;
+      const tax = parseFloat(String(f?.total_tax_withheld || "0").replace(/,/g, "")) || 0;
+      return `<tr><td style="text-align:center">${i+1}</td><td>${payorTinFmt}</td><td style="text-align:center">${atc}</td><td style="text-align:center">${income > 0 ? (tax/income*100).toFixed(2) : "2.00"}</td><td>${payorName}</td><td style="text-align:right">${fmtNum(income)}</td><td style="text-align:right">${fmtNum(tax)}</td></tr>`;
+    }).join("");
+    const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>SAWT - ${fullName}</title><style>@page{size:A4 landscape;margin:15mm}body{font-family:Arial,sans-serif;font-size:9pt;color:#000}.header{text-align:center;margin-bottom:6px}.header h2{font-size:11pt;font-weight:bold;margin:0}.header h3{font-size:10pt;font-weight:bold;margin:2px 0}.meta{display:flex;justify-content:space-between;margin-bottom:8px;font-size:9pt}table{width:100%;border-collapse:collapse;font-size:8.5pt}th{border:1px solid #000;padding:4px 6px;text-align:center;background:#f0f0f0;font-size:8pt}td{border:1px solid #000;padding:3px 6px}.total-row td{font-weight:bold;border-top:2px solid #000}.grand-total{margin-top:8px;text-align:right;font-weight:bold;font-size:9pt;border-top:2px solid #000;padding-top:4px}.footer{margin-top:16px;font-size:8pt}</style></head><body><div class="header"><h2>BIR FORM 1701Q</h2><h3>SUMMARY ALPHALIST OF WITHHOLDING TAXES (SAWT)</h3></div><div class="meta"><div><strong>PAYEE'S NAME:</strong> ${fullName}<br><strong>TIN:</strong> ${displayTin}</div><div style="text-align:right"><strong>FOR THE MONTH OF ${monthName}, ${yearStr}</strong></div></div><table><thead><tr><th style="width:40px">SEQ.<br>NO.</th><th style="width:120px">TAXPAYER<br>IDENTIFICATION<br>NUMBER (TIN)</th><th style="width:50px">ATC</th><th style="width:40px">RATE</th><th>CORPORATION / INDIVIDUAL<br>(Registered Name)</th><th style="width:110px">INCOME<br>PAYMENT</th><th style="width:110px">AMOUNT OF TAX<br>WITHHELD</th></tr></thead><tbody>${tableRows}<tr class="total-row"><td colspan="5" style="text-align:right">PAGE TOTAL</td><td style="text-align:right">${fmtNum(totalIncome)}</td><td style="text-align:right">${fmtNum(totalTax)}</td></tr></tbody></table><div class="grand-total">GRAND TOTAL &nbsp;&nbsp;&nbsp; ${fmtNum(totalTax)}</div><div class="footer">END OF REPORT</div></body></html>`;
+    return { datContent, datFilename, html, tinMain, tinBranch, displayTin, fullName };
+  };
+
+  const openBatchModal = async (quarterStr: string) => {
+    const qNum = parseInt(quarterStr.replace("Q", ""));
+    const { data: uploads } = await supabase.from("uploads").select("*").eq("status", "extracted");
+    const allUploads = uploads || [];
+    const result: { client: any; forms: any[] }[] = [];
+    for (const client of clients.filter(c => !c.tax_type || c.tax_type === "8%")) {
+      const forms2307 = allUploads.filter(u => {
+        const d = parseData(u.extracted_data);
+        return d?.payee_tin?.replace(/\D/g, "").includes(client.tin?.replace(/\D/g, "") || "NOMATCH") ||
+               d?.payee_name?.toLowerCase().includes(client.name.toLowerCase());
+      });
+      const qForms: any[] = [];
+      forms2307.forEach(u => {
+        const d = parseData(u.extracted_data);
+        const period = d?.period_to || d?.period_from || "";
+        const month = parseInt(period.split("/")[0]) || 0;
+        const startMonth = (qNum - 1) * 3 + 1;
+        const endMonth = qNum * 3;
+        if (month >= startMonth && month <= endMonth) qForms.push(d);
+      });
+      if (qForms.length > 0) result.push({ client, forms: qForms });
+    }
+    setBatchModal({ quarter: quarterStr, clientsWithForms: result });
+  };
+
+  const runBatchGenerate = async (selected: { client: any; forms: any[] }[], quarterStr: string) => {
+    setBatchGenerating(true);
+    const qNum = parseInt(quarterStr.replace("Q", ""));
+    const lastMonth = qNum * 3;
+    const lastMonthPadded = String(lastMonth).padStart(2, "0");
+    const now = new Date().toLocaleString("en-PH");
+    let summaryTxt = `BATCH SAWT GENERATION SUMMARY\n`;
+    summaryTxt += `Quarter: ${quarterStr} ${year}\n`;
+    summaryTxt += `Generated: ${now}\n`;
+    summaryTxt += `Total clients: ${selected.length}\n\n`;
+    summaryTxt += `${"TIN".padEnd(20)} ${"CLIENT NAME".padEnd(35)} FILENAME\n`;
+    summaryTxt += `${"-".repeat(80)}\n`;
+    selected.forEach(({ client }) => {
+      const tin = (client.tin || "").replace(/\D/g, "");
+      const tinMain = tin.substring(0, 9).padEnd(9, "0");
+      const tinBranch = tin.substring(9, 13).padEnd(4, "0");
+      const displayTin = `${tinMain.substring(0,3)}-${tinMain.substring(3,6)}-${tinMain.substring(6,9)}-${tinBranch}`;
+      const datFilename = `${tinMain}${tinBranch}${lastMonthPadded}${year}1701Q.DAT`;
+      const fullName = `${client.last_name || ""}, ${client.first_name || ""}`.trim() || client.name;
+      summaryTxt += `${displayTin.padEnd(20)} ${fullName.substring(0, 34).padEnd(35)} ${datFilename}\n`;
+    });
+    summaryTxt += `${"-".repeat(80)}\n`;
+    const summaryBlob = new Blob([summaryTxt], { type: "text/plain" });
+    const summaryUrl = URL.createObjectURL(summaryBlob);
+    const summaryLink = document.createElement("a");
+    summaryLink.href = summaryUrl;
+    summaryLink.download = `BATCH_SAWT_${quarterStr}_${year}_SUMMARY.TXT`;
+    summaryLink.click();
+    URL.revokeObjectURL(summaryUrl);
+    for (let i = 0; i < selected.length; i++) {
+      await new Promise(resolve => setTimeout(resolve, i === 0 ? 500 : 1200));
+      const { client, forms } = selected[i];
+      const { datContent, datFilename, html } = buildSAWTContent(client, qNum, forms, year);
+      const datBlob = new Blob([datContent], { type: "text/plain" });
+      const datUrl = URL.createObjectURL(datBlob);
+      const datLink = document.createElement("a");
+      datLink.href = datUrl;
+      datLink.download = datFilename;
+      datLink.click();
+      URL.revokeObjectURL(datUrl);
+      await new Promise(resolve => setTimeout(resolve, 400));
+      const safeName = (client.last_name || client.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 12);
+      const htmlFilename = `SAWT-${datFilename.replace(".DAT","")}-${safeName}.html`;
+      const htmlWithPrint = html.replace("</body>", "<script>window.onload=function(){window.print();}<\/script></body>");
+      const htmlBlob = new Blob([htmlWithPrint], { type: "text/html" });
+      const htmlUrl = URL.createObjectURL(htmlBlob);
+      const htmlLink = document.createElement("a");
+      htmlLink.href = htmlUrl;
+      htmlLink.download = htmlFilename;
+      htmlLink.click();
+      URL.revokeObjectURL(htmlUrl);
+    }
+    setBatchGenerating(false);
+  };
+
   const computeSummary = async (client: any) => {
     setSelected(client);
     setListOpen(false);
@@ -731,12 +920,26 @@ export default function TaxPage() {
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         * { box-sizing: border-box; margin: 0; padding: 0; }
         body { font-family: 'Inter', sans-serif; background: #0f0f0f; overflow-x: auto; }
-        body.modal-open { overflow: hidden; }
         input, select { outline: none; }
         ::-webkit-scrollbar { width: 4px; } ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
       `}</style>
 
       {showValidator && <DATValidatorModal onClose={() => setShowValidator(false)} />}
+      {batchModal && (
+        <BatchSAWTModal
+          quarter={batchModal.quarter}
+          yearStr={year}
+          clientsWithForms={batchModal.clientsWithForms}
+          onClose={() => setBatchModal(null)}
+          onConfirm={runBatchGenerate}
+        />
+      )}
+      {batchGenerating && (
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
+          <i className="ti ti-loader-2" style={{ fontSize: 16, color: "#a5b4fc" }} />
+          <p style={{ fontSize: 13, color: "#fff" }}>Generating batch SAWT files...</p>
+        </div>
+      )}
 
       <div style={{ display: "flex", minHeight: "100vh", transition: "all 0.25s ease" }}>
         <div style={{ flex: 1, minWidth: drawerOpen ? "900px" : "0", transition: "margin-right 0.25s ease", marginRight: drawerOpen ? "320px" : "0" }}>
@@ -752,6 +955,9 @@ export default function TaxPage() {
                   <h1 style={{ fontSize: 18, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>Tax Summary Engine</h1>
                   <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>BIR 1701Q — Income Tax Compliance</p>
                 </div>
+                <button onClick={() => openBatchModal(activeQuarter)} disabled={batchGenerating} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.1)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, cursor: batchGenerating ? "default" : "pointer", fontFamily: "inherit", opacity: batchGenerating ? 0.5 : 1 }}>
+                  <i className="ti ti-files" style={{ fontSize: 14 }} /> Batch SAWT
+                </button>
                 <button
                   onClick={() => setShowValidator(true)}
                   style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.1)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}
