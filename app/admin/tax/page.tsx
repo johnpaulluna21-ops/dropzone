@@ -27,6 +27,15 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
   const [results, setResults] = useState<DATValidationResult[]>([]);
   const [expanded, setExpanded] = useState<Record<number, boolean>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    const prevent = (e: DragEvent) => e.preventDefault();
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
+  }, []);
 
   const processFiles = (files: File[]) => {
     const datFiles = files.filter(f => /\.(dat|txt)$/i.test(f.name));
