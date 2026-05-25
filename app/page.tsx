@@ -116,7 +116,7 @@ export default function Home() {
           <div style={{ width: 38, height: 38, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <i className="ti ti-inbox" style={{ color: "#fff", fontSize: 18 }} />
           </div>
-          <span style={{ fontSize: 18, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>DropZone</span>
+          <span style={{ fontSize: 18, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>Asikaso</span>
           <span style={{ fontSize: 10, background: "rgba(99,102,241,0.2)", color: "#a5b4fc", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 20, padding: "2px 8px", letterSpacing: "0.5px" }}>BETA</span>
         </div>
 
@@ -261,7 +261,7 @@ export default function Home() {
         <div style={{ marginTop: "1.75rem", display: "flex", alignItems: "center", gap: 16, fontSize: 11, color: "rgba(255,255,255,0.2)", animation: "fadeUp 0.5s 0.2s ease both" }}>
           <span><i className="ti ti-lock" style={{ fontSize: 12, verticalAlign: "-1px", marginRight: 4 }} />Encrypted in transit</span>
           <span style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "inline-block" }} />
-          <span>Powered by DropZone</span>
+          <span>Powered by Asikaso</span>
           <span style={{ width: 3, height: 3, borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "inline-block" }} />
           <span>© 2026</span>
         </div>
