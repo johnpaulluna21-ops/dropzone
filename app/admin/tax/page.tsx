@@ -288,6 +288,7 @@ export default function TaxPage() {
   const [batchEmailClients, setBatchEmailClients] = useState<{ client: any; datContent: string; datFilename: string; quarterNum: number; }[]>([]);
   const [batchEmailSending, setBatchEmailSending] = useState(false);
   const [batchEmailStatus, setBatchEmailStatus] = useState("");
+  const [batchEmailProgress, setBatchEmailProgress] = useState(0);
   const [submissions, setSubmissions] = useState<Record<string, string>>({});
 
   useEffect(() => { fetchClients(); }, []);
@@ -451,6 +452,7 @@ export default function TaxPage() {
     if (batchEmailClients.length === 0) return;
     setBatchEmailSending(true);
     setBatchEmailStatus("");
+    setBatchEmailProgress(0);
     let sent = 0;
     for (const item of batchEmailClients) {
       const { client, datContent, datFilename, quarterNum } = item;
@@ -477,6 +479,7 @@ export default function TaxPage() {
         }, { onConflict: "client_id,quarter,year" });
       } catch { /* continue even if one fails */ }
       sent++;
+      setBatchEmailProgress(Math.round((sent / batchEmailClients.length) * 100));
       await new Promise(r => setTimeout(r, 800));
     }
     setBatchEmailSending(false);
@@ -676,9 +679,24 @@ export default function TaxPage() {
       )}
 
       {(batchEmailSending || batchEmailStatus) && (
-        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: `0.5px solid ${batchEmailSending ? "rgba(59,130,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxWidth: 400 }}>
-          <i className={`ti ti-${batchEmailSending ? "loader-2" : "circle-check"}`} style={{ fontSize: 16, color: batchEmailSending ? "#93c5fd" : "#6ee7b7", flexShrink: 0 }} />
-          <p style={{ fontSize: 13, color: "#fff" }}>{batchEmailStatus || "Sending emails..."}</p>
+        <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "16px 18px", background: "#1a1a1a", border: `0.5px solid ${batchEmailSending ? "rgba(59,130,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxWidth: 360, width: "100%" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: batchEmailSending ? 10 : 0 }}>
+            <i className={`ti ti-${batchEmailSending ? "loader-2" : "circle-check"}`} style={{ fontSize: 16, color: batchEmailSending ? "#93c5fd" : "#6ee7b7", flexShrink: 0 }} />
+            <p style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {batchEmailStatus || "Sending emails..."}
+            </p>
+          </div>
+          {batchEmailSending && (
+            <div style={{ width: "100%", height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
+              <div style={{
+                height: "100%",
+                borderRadius: 4,
+                background: "linear-gradient(90deg, #3b82f6, #6366f1)",
+                width: `${batchEmailProgress}%`,
+                transition: "width 0.4s ease",
+              }} />
+            </div>
+          )}
         </div>
       )}
 
