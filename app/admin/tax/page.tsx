@@ -11,7 +11,6 @@ import {
   fallbackDownload,
   fmtPeso,
   normalizeTin,
-  parseAmount,
   type DATValidationResult,
   type ExtractedForm,
 } from "@/lib/sawt";
@@ -410,7 +409,7 @@ export default function TaxPage() {
       setManualSourceType("manual_entry");
       setShowManualForm(false);
       computeSummary(selected);
-    } catch (err) {
+    } catch {
       alert("Failed to save. Please try again.");
     } finally {
       setManualSaving(false);
@@ -921,10 +920,10 @@ export default function TaxPage() {
 
                         {activeQ && (
                           <div style={{ padding: "20px", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 16, marginBottom: "1.5rem" }}>
-                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
-                              <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{activeQ.quarter} {year} — Detail</p>
+                            <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
+                              <p style={{ fontSize: 14, fontWeight: 600, color: "#fff", flexShrink: 0 }}>{activeQ.quarter} {year} — Detail</p>
                               <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
-                                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                                <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", justifyContent: "flex-end" }}>
                                   <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: activeQ.forms > 0 ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.05)", color: activeQ.forms > 0 ? "#6ee7b7" : "rgba(255,255,255,0.3)", border: `0.5px solid ${activeQ.forms > 0 ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.08)"}` }}>
                                     {activeQ.forms} 2307{activeQ.forms !== 1 ? "s" : ""}
                                   </span>
@@ -932,14 +931,14 @@ export default function TaxPage() {
                                     <i className="ti ti-plus" style={{ fontSize: 12 }} /> Add Income
                                   </button>
                                   {activeQ.forms > 0 && (
-                                    <div style={{ display: "flex", gap: 6 }}>
+                                    <>
                                       <button onClick={() => handleGenerateSAWT(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 8, color: "#6ee7b7", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
                                         <i className="ti ti-file-download" style={{ fontSize: 12 }} /> Generate SAWT
                                       </button>
                                       <button onClick={() => handleSendEmail(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(59,130,246,0.15)", border: "0.5px solid rgba(59,130,246,0.3)", borderRadius: 8, color: "#93c5fd", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
                                         <i className="ti ti-send" style={{ fontSize: 12 }} /> Send to eSubmission
                                       </button>
-                                    </div>
+                                    </>
                                   )}
                                 </div>
                                 {sendStatus && <div style={{ fontSize: 11, color: "#6ee7b7" }}>{sendStatus}</div>}
