@@ -752,13 +752,13 @@ export default function TaxPage() {
                           onClick={() => { const prev = clients[selectedIndex - 1]; if (prev) computeSummary(prev); }}
                           disabled={selectedIndex <= 0}
                           style={{ padding: "3px 7px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: selectedIndex <= 0 ? "default" : "pointer", fontFamily: "inherit", opacity: selectedIndex <= 0 ? 0.3 : 1 }}>
-                          <i className="ti ti-chevron-left" style={{ fontSize: 12 }} />
+                          {"<"}
                         </button>
                         <button
                           onClick={() => { const next = clients[selectedIndex + 1]; if (next) computeSummary(next); }}
                           disabled={selectedIndex >= clients.length - 1}
                           style={{ padding: "3px 7px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 6, color: "#a5b4fc", fontSize: 11, cursor: selectedIndex >= clients.length - 1 ? "default" : "pointer", fontFamily: "inherit", opacity: selectedIndex >= clients.length - 1 ? 0.3 : 1 }}>
-                          <i className="ti ti-chevron-right" style={{ fontSize: 12 }} />
+                          {">"}
                         </button>
                       </div>
                     </div>
