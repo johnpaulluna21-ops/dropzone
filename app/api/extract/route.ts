@@ -74,6 +74,9 @@ CRITICAL TIN EXTRACTION RULES:
   "period_from": "(MM/DD/YYYY)",
   "period_to": "(MM/DD/YYYY)",
   "payee_name": "",
+  "payee_last_name": "(last name / surname only)",
+  "payee_first_name": "(first name only)",
+  "payee_middle_name": "(middle name only)",
   "payee_tin": "(extract full TIN including all trailing zeros)",
   "payee_address": "",
   "payor_name": "",
@@ -250,11 +253,15 @@ export async function POST(request: NextRequest) {
         .eq("tin", cleanTin)
         .single();
       if (!existing) {
-        await supabase.from("clients").insert({
-          name: extractedData.payee_name,
-          tin: cleanTin,
-        });
-      }
+  await supabase.from("clients").insert({
+    name: extractedData.payee_name,
+    tin: cleanTin,
+    last_name: extractedData.payee_last_name || null,
+    first_name: extractedData.payee_first_name || null,
+    middle_name: extractedData.payee_middle_name || null,
+    address: extractedData.payee_address || null,
+  });
+}
     }
 
     return NextResponse.json({ success: true, data: extractedData });
