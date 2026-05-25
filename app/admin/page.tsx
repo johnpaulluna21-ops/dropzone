@@ -19,6 +19,8 @@ export default function AdminPage() {
   const [checked, setChecked] = useState<string[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [bulkExtracting, setBulkExtracting] = useState(false);
+  const [rerunProgress, setRerunProgress] = useState<{ current: number; total: number } | null>(null);
+  const [exporting, setExporting] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [page, setPage] = useState(1);
@@ -38,14 +40,14 @@ export default function AdminPage() {
     return () => { supabase.removeChannel(channel); };
   }, []);
 
-const fetchUploads = async () => {
-  const { data } = await supabase
-    .from("uploads")
-    .select("*")
-    .order("status", { ascending: true })
-    .order("created_at", { ascending: false });
-  setUploads((data || []).filter(u => !u.deleted_at));
-};
+  const fetchUploads = async () => {
+    const { data } = await supabase
+      .from("uploads")
+      .select("*")
+      .order("status", { ascending: true })
+      .order("created_at", { ascending: false });
+    setUploads((data || []).filter(u => !u.deleted_at));
+  };
 
   const handleExtract = async (upload: any) => {
     setExtracting(upload.id);
@@ -84,8 +86,13 @@ const fetchUploads = async () => {
     if (toRerun.length === 0) return;
     if (!confirm(`Force re-run ${toRerun.length} file(s)? This will overwrite existing data.`)) return;
     setBulkExtracting(true);
-    for (const upload of toRerun) { await handleExtract(upload); }
+    setRerunProgress({ current: 0, total: toRerun.length });
+    for (let i = 0; i < toRerun.length; i++) {
+      await handleExtract(toRerun[i]);
+      setRerunProgress({ current: i + 1, total: toRerun.length });
+    }
     setBulkExtracting(false);
+    setRerunProgress(null);
     setChecked([]);
   };
 
@@ -132,13 +139,21 @@ const fetchUploads = async () => {
   const handleExportSelected = () => {
     const rows = uploads.filter((u) => checked.includes(u.id) && u.extracted_data);
     if (rows.length === 0) return alert("No extracted files selected.");
-    exportToExcel(rows, `dropzone_selected_${Date.now()}.xlsx`);
+    setExporting(true);
+    setTimeout(() => {
+      exportToExcel(rows, `dropzone_selected_${Date.now()}.xlsx`);
+      setExporting(false);
+    }, 100);
   };
 
   const handleExportAll = () => {
     const rows = uploads.filter((u) => u.extracted_data);
     if (rows.length === 0) return alert("No extracted files to export.");
-    exportToExcel(rows, `dropzone_all_${Date.now()}.xlsx`);
+    setExporting(true);
+    setTimeout(() => {
+      exportToExcel(rows, `dropzone_all_${Date.now()}.xlsx`);
+      setExporting(false);
+    }, 100);
   };
 
   const toggleCheck = (id: string, idx: number, e: React.MouseEvent) => {
@@ -235,6 +250,7 @@ const fetchUploads = async () => {
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
         input[type="checkbox"] { accent-color: #6366f1; width: 14px; height: 14px; cursor: pointer; }
         @keyframes fadeUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         .row-selectable { cursor: pointer; user-select: none; }
         .row-selectable:hover { background: rgba(99,102,241,0.04) !important; }
       `}</style>
@@ -269,24 +285,58 @@ const fetchUploads = async () => {
               <Link href="/admin/tax" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, fontWeight: 500, textDecoration: "none" }}>
                 <i className="ti ti-calculator" style={{ fontSize: 14 }} /> Tax Summary
               </Link>
-              <button onClick={handleExportAll} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
-                <i className="ti ti-table-export" style={{ fontSize: 14 }} /> Export All
+
+              {/* Export All */}
+              <button
+                onClick={handleExportAll}
+                disabled={exporting}
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: exporting ? 0.6 : 1 }}
+              >
+                <i className={exporting ? "ti ti-loader-2" : "ti ti-table-export"} style={{ fontSize: 14, animation: exporting ? "spin 0.8s linear infinite" : "none" }} />
+                {exporting ? "Exporting..." : "Export All"}
               </button>
+
               {checked.length > 0 && (
                 <>
-                  <button onClick={handleExtractSelected} disabled={bulkExtracting} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: bulkExtracting ? 0.5 : 1 }}>
-                    <i className="ti ti-sparkles" style={{ fontSize: 14 }} />
+                  {/* Extract Pending */}
+                  <button
+                    onClick={handleExtractSelected}
+                    disabled={bulkExtracting}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, fontWeight: 500, cursor: bulkExtracting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: bulkExtracting ? 0.6 : 1 }}
+                  >
+                    <i className={bulkExtracting ? "ti ti-loader-2" : "ti ti-sparkles"} style={{ fontSize: 14, animation: bulkExtracting ? "spin 0.8s linear infinite" : "none" }} />
                     {bulkExtracting ? "Extracting..." : `Extract ${pendingCount} pending`}
                   </button>
-                  <button onClick={handleForceRerunSelected} disabled={bulkExtracting} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(245,158,11,0.15)", border: "0.5px solid rgba(245,158,11,0.3)", borderRadius: 10, color: "#fcd34d", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: bulkExtracting ? 0.5 : 1 }}>
-                    <i className="ti ti-refresh" style={{ fontSize: 14 }} />
-                    {bulkExtracting ? "Running..." : `Force Re-run ${checked.length}`}
+
+                  {/* Force Re-run with live counter */}
+                  <button
+                    onClick={handleForceRerunSelected}
+                    disabled={bulkExtracting}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(245,158,11,0.15)", border: "0.5px solid rgba(245,158,11,0.3)", borderRadius: 10, color: "#fcd34d", fontSize: 13, fontWeight: 500, cursor: bulkExtracting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: bulkExtracting ? 0.6 : 1 }}
+                  >
+                    <i className={bulkExtracting ? "ti ti-loader-2" : "ti ti-refresh"} style={{ fontSize: 14, animation: bulkExtracting ? "spin 0.8s linear infinite" : "none" }} />
+                    {rerunProgress
+                      ? `Re-running ${rerunProgress.current}/${rerunProgress.total}`
+                      : `Force Re-run ${checked.length}`}
                   </button>
-                  <button onClick={handleExportSelected} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.10)", border: "0.5px solid rgba(16,185,129,0.2)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
-                    <i className="ti ti-download" style={{ fontSize: 14 }} /> Export {checked.length}
+
+                  {/* Export Selected */}
+                  <button
+                    onClick={handleExportSelected}
+                    disabled={exporting}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.10)", border: "0.5px solid rgba(16,185,129,0.2)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: exporting ? 0.6 : 1 }}
+                  >
+                    <i className={exporting ? "ti ti-loader-2" : "ti ti-download"} style={{ fontSize: 14, animation: exporting ? "spin 0.8s linear infinite" : "none" }} />
+                    {exporting ? "Exporting..." : `Export ${checked.length}`}
                   </button>
-                  <button onClick={handleDelete} disabled={deleting} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(239,68,68,0.12)", border: "0.5px solid rgba(239,68,68,0.25)", borderRadius: 10, color: "#fca5a5", fontSize: 13, fontWeight: 500, cursor: "pointer", fontFamily: "inherit", opacity: deleting ? 0.5 : 1 }}>
-                    <i className="ti ti-trash" style={{ fontSize: 14 }} />
+
+                  {/* Delete */}
+                  <button
+                    onClick={handleDelete}
+                    disabled={deleting}
+                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(239,68,68,0.12)", border: "0.5px solid rgba(239,68,68,0.25)", borderRadius: 10, color: "#fca5a5", fontSize: 13, fontWeight: 500, cursor: deleting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: deleting ? 0.6 : 1 }}
+                  >
+                    <i className={deleting ? "ti ti-loader-2" : "ti ti-trash"} style={{ fontSize: 14, animation: deleting ? "spin 0.8s linear infinite" : "none" }} />
                     {deleting ? "Deleting..." : `Delete ${checked.length}`}
                   </button>
                 </>
@@ -396,7 +446,12 @@ const fetchUploads = async () => {
                             border: upload.extracted_data ? hasParseError(upload.extracted_data) ? "0.5px solid rgba(239,68,68,0.3)" : "0.5px solid rgba(255,255,255,0.1)" : "0.5px solid rgba(99,102,241,0.35)",
                             color: upload.extracted_data ? hasParseError(upload.extracted_data) ? "#fca5a5" : "rgba(255,255,255,0.5)" : "#a5b4fc",
                           }}>
-                            {extracting === upload.id ? "..." : upload.extracted_data ? "Re-run" : "Extract"}
+                            {extracting === upload.id ? (
+                              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                                <i className="ti ti-loader-2" style={{ fontSize: 12, animation: "spin 0.8s linear infinite" }} />
+                                ...
+                              </span>
+                            ) : upload.extracted_data ? "Re-run" : "Extract"}
                           </button>
                         </div>
                       </td>
