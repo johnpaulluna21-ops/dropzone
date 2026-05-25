@@ -141,7 +141,7 @@ export default function AdminPage() {
     if (rows.length === 0) return alert("No extracted files selected.");
     setExporting(true);
     setTimeout(() => {
-      exportToExcel(rows, `dropzone_selected_${Date.now()}.xlsx`);
+      exportToExcel(rows, `Asikaso_selected_${Date.now()}.xlsx`);
       setExporting(false);
     }, 100);
   };
@@ -151,7 +151,7 @@ export default function AdminPage() {
     if (rows.length === 0) return alert("No extracted files to export.");
     setExporting(true);
     setTimeout(() => {
-      exportToExcel(rows, `dropzone_all_${Date.now()}.xlsx`);
+      exportToExcel(rows, `Asikaso_all_${Date.now()}.xlsx`);
       setExporting(false);
     }, 100);
   };
