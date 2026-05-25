@@ -295,6 +295,7 @@ export default function TaxPage() {
   }[]>([]);
   const [batchEmailSending, setBatchEmailSending] = useState(false);
   const [batchEmailStatus, setBatchEmailStatus] = useState("");
+  const [submissions, setSubmissions] = useState<Record<string, string>>({});
   // ──────────────────────────────────────────────────────────────────────────
 
   useEffect(() => { fetchClients(); }, []);
@@ -304,6 +305,16 @@ export default function TaxPage() {
     const { data } = await supabase.from("clients").select("*").order("name");
     setClients(data || []);
   };
+  const fetchSubmissions = async (clientId: string) => {
+  const { data } = await supabase
+    .from("sawt_submissions")
+    .select("quarter, submitted_at")
+    .eq("client_id", clientId)
+    .eq("year", parseInt(year));
+  const map: Record<string, string> = {};
+  (data || []).forEach((s: any) => { map[`Q${s.quarter}`] = s.submitted_at; });
+  setSubmissions(map);
+};
 
   const openEdit = async (client: any) => {
     setEditingClient(client);
@@ -585,7 +596,7 @@ const openBatchModal = async (quarterStr: string) => {
   };
 
   const computeSummary = async (client: any) => {
-    setSelected(client); setListOpen(false); setActiveQuarter("Q1"); setLoading(true);
+    setSelected(client); setListOpen(false); setActiveQuarter("Q1"); setLoading(true);fetchSubmissions(client.id);
     try {
       const { data: uploads } = await supabase.from("uploads").select("*").eq("status", "extracted");
       const forms2307 = (uploads || []).filter(u => {
