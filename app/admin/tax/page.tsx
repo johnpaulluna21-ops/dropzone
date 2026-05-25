@@ -515,7 +515,7 @@ export default function TaxPage() {
     }
   };
 
-  const handleSendEmail = async (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
+  const handleSendToBIR = async (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
     try {
       const result = generateSAWTContent(
         { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
@@ -524,8 +524,9 @@ export default function TaxPage() {
       const fullName = `${client.first_name || ""} ${client.middle_name ? client.middle_name + " " : ""}${client.last_name || ""}`.trim().toUpperCase();
       const nameParts = (client.name || "").split("/");
       const registeredName = (nameParts.length > 1 ? nameParts[1] : nameParts[0]).trim().toUpperCase();
-      const confirmed = window.confirm(`Send SAWT to BIR eSubmission?\n\n${fullName}\nQ${quarterNum} ${year}`);
+      const confirmed = window.confirm(`Send SAWT to BIR?\n\n${fullName}\nQ${quarterNum} ${year}`);
       if (!confirmed) return;
+      fallbackDownload(result.datFilename, result.datContent, "text/plain");
       const resp = await fetch("/api/sawt/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -560,6 +561,8 @@ export default function TaxPage() {
       const { display: displayTin } = normalizeTin(client.tin || "");
       setBatchEmailStatus(`Sending ${sent + 1} / ${batchEmailClients.length}: ${fullName}...`);
       try {
+        // Save DAT locally before sending
+        fallbackDownload(datFilename, datContent, "text/plain");
         await fetch("/api/sawt/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ datContent, datFilename, clientName: fullName, registeredName, tin: displayTin, quarterNum, year, address: client.address || "" }) });
         await recordSawtSubmission(client.id, quarterNum, parseInt(year), datFilename);
       } catch { /* continue even if one fails */ }
@@ -748,7 +751,7 @@ export default function TaxPage() {
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Send all to BIR eSubmission?</p>
           </div>
           <button onClick={handleBatchSendEmail} style={{ padding: "7px 14px", background: "rgba(59,130,246,0.2)", border: "0.5px solid rgba(59,130,246,0.4)", borderRadius: 8, color: "#93c5fd", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}>
-            <i className="ti ti-send" style={{ fontSize: 12 }} /> Send All
+            <i className="ti ti-send" style={{ fontSize: 12 }} /> Batch Send to BIR
           </button>
           <button onClick={() => setBatchEmailClients([])} style={{ width: 26, height: 26, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", flexShrink: 0 }}>X</button>
         </div>
@@ -783,10 +786,10 @@ export default function TaxPage() {
                 </div>
                 <button onClick={handleBatchSendEmail} disabled={batchEmailClients.length === 0 || batchEmailSending} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: batchEmailClients.length > 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${batchEmailClients.length > 0 ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: batchEmailClients.length > 0 ? "#93c5fd" : "rgba(255,255,255,0.2)", fontSize: 13, fontWeight: 600, cursor: batchEmailClients.length === 0 || batchEmailSending ? "default" : "pointer", fontFamily: "inherit", opacity: batchEmailSending ? 0.5 : 1 }}>
                   <i className="ti ti-send" style={{ fontSize: 14 }} />
-                  {batchEmailClients.length > 0 ? `Send All (${batchEmailClients.length})` : "Send All"}
+                  {batchEmailClients.length > 0 ? `Batch Send to BIR (${batchEmailClients.length})` : "Batch Send to BIR"}
                 </button>
                 <button onClick={() => openBatchModal(activeQuarter)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.1)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-                  <i className="ti ti-folders" style={{ fontSize: 14 }} /> Batch SAWT
+                  <i className="ti ti-folders" style={{ fontSize: 14 }} /> Batch Generate
                 </button>
                 <button onClick={handleExportExcel} disabled={!summary} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: summary ? "rgba(16,185,129,0.1)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${summary ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: summary ? "#6ee7b7" : "rgba(255,255,255,0.2)", fontSize: 13, cursor: summary ? "pointer" : "default", fontFamily: "inherit" }}>
                   <i className="ti ti-table-export" style={{ fontSize: 14 }} /> Export Excel
@@ -935,8 +938,8 @@ export default function TaxPage() {
                                       <button onClick={() => handleGenerateSAWT(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 8, color: "#6ee7b7", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
                                         <i className="ti ti-file-download" style={{ fontSize: 12 }} /> Generate SAWT
                                       </button>
-                                      <button onClick={() => handleSendEmail(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(59,130,246,0.15)", border: "0.5px solid rgba(59,130,246,0.3)", borderRadius: 8, color: "#93c5fd", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
-                                        <i className="ti ti-send" style={{ fontSize: 12 }} /> Send to eSubmission
+                                      <button onClick={() => handleSendToBIR(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(59,130,246,0.15)", border: "0.5px solid rgba(59,130,246,0.3)", borderRadius: 8, color: "#93c5fd", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+                                        <i className="ti ti-send" style={{ fontSize: 12 }} /> Send to BIR
                                       </button>
                                     </>
                                   )}
