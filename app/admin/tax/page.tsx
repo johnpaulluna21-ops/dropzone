@@ -15,6 +15,7 @@ import {
   type DATValidationResult,
   type ExtractedForm,
 } from "@/lib/sawt";
+import * as XLSX from "xlsx";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -608,6 +609,33 @@ export default function TaxPage() {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
+  const handleExportExcel = () => {
+    if (!summary) return;
+    const rows: any[] = [];
+    rows.push(["TAX SUMMARY REPORT"]);
+    rows.push(["Client", summary.client.name]);
+    rows.push(["TIN", summary.client.tin || "N/A"]);
+    rows.push(["Tax Year", year]);
+    rows.push(["Tax Type", summary.client.tax_type || "8%"]);
+    rows.push([]);
+    rows.push(["Quarter", "2307s", "Quarterly Income", "Cumulative Income", "Taxable Income", "Tax Due (8%)", "CWT This Quarter", "Total Credits", "Tax Payable / (Overpayment)", "Payment Made"]);
+    summary.quarters.forEach((q: any) => {
+      rows.push([q.quarter, q.forms, q.item47, q.item51, q.item53, q.item54, q.item58, q.item62, q.item63, q.paid || 0]);
+    });
+    rows.push([]);
+    const lastQ = summary.quarters[summary.quarters.length - 1];
+    rows.push(["ANNUAL SUMMARY"]);
+    rows.push(["Total Income", lastQ?.item51 || 0]);
+    rows.push(["Taxable Income", lastQ?.item53 || 0]);
+    rows.push(["Annual Tax Due", lastQ?.item54 || 0]);
+    rows.push(["Total Credits", lastQ?.item62 || 0]);
+    const ws = XLSX.utils.aoa_to_sheet(rows);
+    ws["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 24 }, { wch: 14 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Tax Summary");
+    const filename = `TaxSummary_${(summary.client.name || "client").replace(/[^a-zA-Z0-9]/g, "_")}_${year}.xlsx`;
+    XLSX.writeFile(wb, filename);
+  };
   const fmt = (n: number) => `P${fmtPeso(Math.abs(n))}`;
   const clients8 = clients.filter(c => (!c.tax_type || c.tax_type === "8%") && (c.name.toLowerCase().includes(search.toLowerCase()) || (c.tin || "").includes(search)));
   const clientsGrad = clients.filter(c => c.tax_type === "graduated" && (c.name.toLowerCase().includes(search.toLowerCase()) || (c.tin || "").includes(search)));
@@ -720,6 +748,9 @@ export default function TaxPage() {
                 </button>
                 <button onClick={() => openBatchModal(activeQuarter)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.1)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                   <i className="ti ti-folders" style={{ fontSize: 14 }} /> Batch SAWT
+                </button>
+                <button onClick={handleExportExcel} disabled={!summary} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: summary ? "rgba(16,185,129,0.1)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${summary ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: summary ? "#6ee7b7" : "rgba(255,255,255,0.2)", fontSize: 13, cursor: summary ? "pointer" : "default", fontFamily: "inherit" }}>
+                  <i className="ti ti-table-export" style={{ fontSize: 14 }} /> Export Excel
                 </button>
                 <button onClick={() => setShowValidator(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.1)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                   <i className="ti ti-shield-check" style={{ fontSize: 14 }} /> Validate DAT
