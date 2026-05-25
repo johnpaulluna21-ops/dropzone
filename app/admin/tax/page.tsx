@@ -1004,8 +1004,8 @@ export default function TaxPage() {
                                           <p style={{ fontSize: 12, fontWeight: 600, color: "#fcd34d" }}>P{fmtPeso(m.gross_income)}</p>
                                           {m.tax_withheld > 0 && <p style={{ fontSize: 10, color: "#6ee7b7" }}>CWT: P{fmtPeso(m.tax_withheld)}</p>}
                                         </div>
-                                        <button onClick={() => handleDeleteManualIncome(m.id)} style={{ width: 24, height: 24, background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 6, color: "#fca5a5", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>
-                                          <i className="ti ti-x" style={{ fontSize: 11 }} />
+                                        <button onClick={() => handleDeleteManualIncome(m.id)} style={{ width: 24, height: 24, background: "rgba(239,68,68,0.15)", border: "0.5px solid rgba(239,68,68,0.35)", borderRadius: 6, color: "#fca5a5", fontSize: 14, fontWeight: 700, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", lineHeight: 1 }}>
+                                          ✕
                                         </button>
                                       </div>
                                     </div>
