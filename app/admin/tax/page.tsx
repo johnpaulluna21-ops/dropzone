@@ -770,6 +770,9 @@ const openBatchModal = async (quarterStr: string) => {
   <i className="ti ti-send" style={{ fontSize: 14 }} />
   {batchEmailClients.length > 0 ? `Send All (${batchEmailClients.length})` : "Send All"}
 </button>
+<button onClick={() => openBatchModal(activeQuarter)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.1)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+  <i className="ti ti-folders" style={{ fontSize: 14 }} /> Batch SAWT
+</button>
                 <button onClick={() => setShowValidator(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.1)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                   <i className="ti ti-shield-check" style={{ fontSize: 14 }} /> Validate DAT
                 </button>
