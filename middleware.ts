@@ -16,8 +16,10 @@ export function middleware(request: NextRequest) {
     }
 
     const base64 = authHeader.split(" ")[1];
-    const decoded = Buffer.from(base64, "base64").toString("utf-8");
-    const [username, password] = decoded.split(":");
+    const decoded = atob(base64);
+    const colonIndex = decoded.indexOf(":");
+    const username = decoded.substring(0, colonIndex);
+    const password = decoded.substring(colonIndex + 1);
 
     const validUsername = process.env.ADMIN_USERNAME;
     const validPassword = process.env.ADMIN_PASSWORD;
