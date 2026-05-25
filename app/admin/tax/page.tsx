@@ -827,11 +827,12 @@ const openBatchModal = async (quarterStr: string) => {
       <button
         onClick={() => {
           const currentIndex = clients.findIndex(c => c.id === selected.id);
+
           const nextClient = clients[currentIndex + 1];
           if (nextClient) computeSummary(nextClient);
         }}
         disabled={clients.findIndex(c => c.id === selected.id) === clients.length - 1}
-        style={{ padding: "3px 8px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 6, color: "#a5b4fc", fontSize: 11, cursor: "pointer", fontFamily: "inherit", opacity: clients.findIndex(c => c.id === selected.id) === clients.length - 1 ? 0.3 : 1 }}>→</button>
+        style={{ padding: "3px 8px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 6, color: "#a5b4fc", fontSize: 11, cursor: "pointer", fontFamily: "inherit", opacity: clients.findIndex(c => c.id === selected.id) === clients.length - 1 ? 0.3 : 1 }}><i className="ti ti-chevron-right" style={{ fontSize: 12 }} /></button>
     </div>
   </div>
 )}
