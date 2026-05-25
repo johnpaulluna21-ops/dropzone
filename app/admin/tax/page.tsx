@@ -16,6 +16,23 @@ import {
   type ExtractedForm,
 } from "@/lib/sawt";
 import * as XLSX from "xlsx";
+import {
+  fetchClient2307s,
+  fetchPriorYearCredit,
+  fetchTaxPayments,
+  fetchSubmissions,
+  recordSawtSubmission,
+  fetchClients as fetchClientsFromDB,
+} from "@/services/tax";
+import {
+  fetchManualIncomeByYear,
+  saveManualIncome,
+  deleteManualIncome as deleteManualIncomeFromDB,
+} from "@/services/manualIncome";
+import {
+  computeQuarterlySummary,
+  type ManualIncomeEntry,
+} from "@/modules/tax/computeQuarterlySummary";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -292,23 +309,119 @@ export default function TaxPage() {
   const [batchEmailProgress, setBatchEmailProgress] = useState(0);
   const [submissions, setSubmissions] = useState<Record<string, string>>({});
 
-  useEffect(() => { fetchClients(); }, []);
+  // ── Manual Income State ──────────────────────────────────────
+  const [manualIncomes, setManualIncomes] = useState<ManualIncomeEntry[]>([]);
+  const [showManualForm, setShowManualForm] = useState(false);
+  const [manualPayorName, setManualPayorName] = useState("");
+  const [manualGrossIncome, setManualGrossIncome] = useState("");
+  const [manualTaxWithheld, setManualTaxWithheld] = useState("");
+  const [manualSourceType, setManualSourceType] = useState("manual_entry");
+  const [manualNotes, setManualNotes] = useState("");
+  const [manualSaving, setManualSaving] = useState(false);
+  // ────────────────────────────────────────────────────────────
+
+  useEffect(() => { loadClients(); }, []);
   useEffect(() => { setPage8(1); setPageGrad(1); }, [search]);
 
-  const fetchClients = async () => {
-    const { data } = await supabase.from("clients").select("*").order("name");
-    setClients(data || []);
+  // ── UI: load clients via service ─────────────────────────────
+  const loadClients = async () => {
+    const data = await fetchClientsFromDB();
+    setClients(data);
   };
 
-  const fetchSubmissions = async (clientId: string) => {
-    const { data } = await supabase
-      .from("sawt_submissions")
-      .select("quarter, submitted_at")
-      .eq("client_id", clientId)
-      .eq("year", parseInt(year));
-    const map: Record<string, string> = {};
-    (data || []).forEach((s: any) => { map[`Q${s.quarter}`] = s.submitted_at; });
+  // ── UI: load submissions via service ─────────────────────────
+  const loadSubmissions = async (clientId: string) => {
+    const map = await fetchSubmissions(clientId, parseInt(year));
     setSubmissions(map);
+  };
+
+  // ── UI: compute summary — orchestrates services + pure function
+  const computeSummary = useCallback(async (client: any) => {
+    setSelected(client);
+    setListOpen(false);
+    setActiveQuarter("Q1");
+    setLoading(true);
+    setShowManualForm(false);
+
+    try {
+      // 1. Load submissions (UI state)
+      const submissionsMap = await fetchSubmissions(client.id, parseInt(year));
+      setSubmissions(submissionsMap);
+
+      // 2. Fetch all data via services
+      const raw2307s = await fetchClient2307s(client.tin || "", client.name);
+      const priorCredit = await fetchPriorYearCredit(client.id, parseInt(year));
+      const paymentsByQuarter = await fetchTaxPayments(client.id, parseInt(year));
+      const manualByQuarter = await fetchManualIncomeByYear(client.id, parseInt(year));
+
+      // 3. Store manual incomes for UI display
+      const allManual = Object.values(manualByQuarter).flat() as ManualIncomeEntry[];
+      setManualIncomes(allManual);
+
+      // 4. Bucket 2307s by quarter
+      const forms2307ByQuarter: Record<string, any[]> = { Q1: [], Q2: [], Q3: [], Q4: [] };
+      let totalForms = 0;
+      raw2307s.forEach((u: any) => {
+        const data = parseExtractedData(u.extracted_data);
+        const period = data?.period_to || data?.period_from || "";
+        const month = parseInt(period.split("/")[0]) || 0;
+        if (month >= 1 && month <= 3) { forms2307ByQuarter.Q1.push(data); totalForms++; }
+        else if (month >= 4 && month <= 6) { forms2307ByQuarter.Q2.push(data); totalForms++; }
+        else if (month >= 7 && month <= 9) { forms2307ByQuarter.Q3.push(data); totalForms++; }
+        else if (month >= 10 && month <= 12) { forms2307ByQuarter.Q4.push(data); totalForms++; }
+      });
+
+      // 5. Call pure function — no math in the page
+      const result = computeQuarterlySummary({
+        forms2307ByQuarter,
+        manualByQuarter,
+        priorCredit,
+        paymentsByQuarter,
+        totalForms,
+      });
+
+      setSummary({ client, ...result });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }, [year]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ── Manual income: save via service ─────────────────────────
+  const handleSaveManualIncome = async () => {
+    if (!selected || !manualPayorName.trim() || !manualGrossIncome.trim()) return;
+    setManualSaving(true);
+    try {
+      await saveManualIncome({
+        client_id: selected.id,
+        quarter: parseInt(activeQuarter.replace("Q", "")),
+        year: parseInt(year),
+        payor_name: manualPayorName.trim(),
+        gross_income: parseFloat(manualGrossIncome) || 0,
+        tax_withheld: parseFloat(manualTaxWithheld) || 0,
+        source_type: manualSourceType,
+        notes: manualNotes.trim() || null,
+      });
+      setManualPayorName("");
+      setManualGrossIncome("");
+      setManualTaxWithheld("");
+      setManualNotes("");
+      setManualSourceType("manual_entry");
+      setShowManualForm(false);
+      computeSummary(selected);
+    } catch (err) {
+      alert("Failed to save. Please try again.");
+    } finally {
+      setManualSaving(false);
+    }
+  };
+
+  // ── Manual income: delete via service ────────────────────────
+  const handleDeleteManualIncome = async (id: string) => {
+    if (!confirm("Remove this income entry?")) return;
+    await deleteManualIncomeFromDB(id);
+    computeSummary(selected);
   };
 
   const openEdit = async (client: any) => {
@@ -353,7 +466,7 @@ export default function TaxPage() {
     setNewName(""); setNewTin(""); setNewCredit(""); setNewTaxType("8%");
     setNewLastName(""); setNewFirstName(""); setNewMiddleName(""); setNewRdo("");
     setShowAddClient(false);
-    fetchClients();
+    loadClients();
   };
 
   const saveEditClient = useCallback(async () => {
@@ -379,14 +492,14 @@ export default function TaxPage() {
       if (deletedPayments.includes(qNum)) continue;
       const amountPaid = parseFloat(amount) || 0;
       const { data: existing } = await supabase.from("tax_payments").select("id").eq("client_id", editingClient.id).eq("year", parseInt(year)).eq("quarter", qNum).single();
-      if (existing) { await supabase.from("prior_year_credits").update({ amount_paid: amountPaid }).eq("id", existing.id); }
+      if (existing) { await supabase.from("tax_payments").update({ amount_paid: amountPaid }).eq("id", existing.id); }
       else { await supabase.from("tax_payments").insert({ client_id: editingClient.id, year: parseInt(year), quarter: qNum, amount_paid: amountPaid }); }
     }
     const updatedClient = { ...editingClient, tax_type: editTaxType, last_name: editLastName.trim() || null, first_name: editFirstName.trim() || null, middle_name: editMiddleName.trim() || null, rdo_code: editRdo.trim() || null, address: editAddress.trim() || null };
     setEditingClient(null); setEditCredit(""); setEditPayments({ Q1: "", Q2: "", Q3: "" }); setDeletedPayments([]);
-    fetchClients();
+    loadClients();
     if (selected?.id === editingClient.id) { setSelected(updatedClient); computeSummary(updatedClient); }
-  }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editAddress, editCredit, editCreditYear, editPayments, deletedPayments, fetchClients, selected, year]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editAddress, editCredit, editCreditYear, editPayments, deletedPayments, selected, year, computeSummary]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGenerateSAWT = (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
     const result = generateSAWTContent(
@@ -417,25 +530,10 @@ export default function TaxPage() {
       const resp = await fetch("/api/sawt/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          datContent: result.datContent,
-          datFilename: result.datFilename,
-          clientName: fullName,
-          registeredName,
-          tin: result.displayTin,
-          quarterNum,
-          year,
-          address: client.address || "",
-        }),
+        body: JSON.stringify({ datContent: result.datContent, datFilename: result.datFilename, clientName: fullName, registeredName, tin: result.displayTin, quarterNum, year, address: client.address || "" }),
       });
       if (resp.ok) {
-        await supabase.from("sawt_submissions").upsert({
-          client_id: client.id,
-          quarter: quarterNum,
-          year: parseInt(year),
-          submitted_at: new Date().toISOString(),
-          dat_filename: result.datFilename,
-        }, { onConflict: "client_id,quarter,year" });
+        await recordSawtSubmission(client.id, quarterNum, parseInt(year), result.datFilename);
         setSubmissions(prev => ({ ...prev, [`Q${quarterNum}`]: new Date().toISOString() }));
         setSendStatus(`Sent: ${fullName}`);
         setTimeout(() => setSendStatus(""), 4000);
@@ -463,21 +561,8 @@ export default function TaxPage() {
       const { display: displayTin } = normalizeTin(client.tin || "");
       setBatchEmailStatus(`Sending ${sent + 1} / ${batchEmailClients.length}: ${fullName}...`);
       try {
-        await fetch("/api/sawt/email", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            datContent, datFilename, clientName: fullName, registeredName,
-            tin: displayTin, quarterNum, year, address: client.address || "",
-          }),
-        });
-        await supabase.from("sawt_submissions").upsert({
-          client_id: client.id,
-          quarter: quarterNum,
-          year: parseInt(year),
-          submitted_at: new Date().toISOString(),
-          dat_filename: datFilename,
-        }, { onConflict: "client_id,quarter,year" });
+        await fetch("/api/sawt/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ datContent, datFilename, clientName: fullName, registeredName, tin: displayTin, quarterNum, year, address: client.address || "" }) });
+        await recordSawtSubmission(client.id, quarterNum, parseInt(year), datFilename);
       } catch { /* continue even if one fails */ }
       sent++;
       setBatchEmailProgress(Math.round((sent / batchEmailClients.length) * 100));
@@ -485,7 +570,7 @@ export default function TaxPage() {
     }
     setBatchEmailSending(false);
     setBatchEmailStatus(`Done - ${sent} email${sent !== 1 ? "s" : ""} sent.`);
-    if (selected) fetchSubmissions(selected.id);
+    if (selected) loadSubmissions(selected.id);
     setTimeout(() => { setBatchEmailClients([]); setBatchEmailStatus(""); setBatchEmailProgress(0); }, 4000);
   };
 
@@ -569,46 +654,6 @@ export default function TaxPage() {
     setBatchStatus("");
   };
 
-  const computeSummary = async (client: any) => {
-    setSelected(client); setListOpen(false); setActiveQuarter("Q1"); setLoading(true);
-    fetchSubmissions(client.id);
-    try {
-      const { data: uploads } = await supabase.from("uploads").select("*").eq("status", "extracted");
-      const forms2307 = (uploads || []).filter(u => {
-        const data = parseExtractedData(u.extracted_data);
-        return data?.payee_tin?.replace(/\D/g, "").includes(client.tin?.replace(/\D/g, "") || "NOMATCH") || data?.payee_name?.toLowerCase().includes(client.name.toLowerCase());
-      });
-      const { data: credits } = await supabase.from("prior_year_credits").select("*").eq("client_id", client.id).eq("year", parseInt(year) - 1);
-      const priorCredit = credits?.reduce((sum: number, c: any) => sum + (c.excess_credit || 0), 0) || 0;
-      const { data: payments } = await supabase.from("tax_payments").select("*").eq("client_id", client.id).eq("year", parseInt(year));
-      const quarters: Record<string, ExtractedForm[]> = { Q1: [], Q2: [], Q3: [], Q4: [] };
-      forms2307.forEach(u => {
-        const data = parseExtractedData(u.extracted_data);
-        const period = data?.period_to || data?.period_from || "";
-        const month = parseInt(period.split("/")[0]) || 0;
-        if (month >= 1 && month <= 3) quarters.Q1.push(data);
-        else if (month >= 4 && month <= 6) quarters.Q2.push(data);
-        else if (month >= 7 && month <= 9) quarters.Q3.push(data);
-        else if (month >= 10 && month <= 12) quarters.Q4.push(data);
-      });
-      let cumulativeIncome = 0, cumulativeCWT = 0, previousPaid = 0;
-      const EXEMPTION = 250000;
-      const qSummaries = [];
-      for (const [q, forms] of Object.entries(quarters)) {
-        const qNum = parseInt(q.replace("Q", ""));
-        const item47 = forms.reduce((sum, f) => sum + parseAmount(f?.total_income), 0);
-        const item50 = cumulativeIncome, item51 = item47 + item50, item52 = EXEMPTION, item53 = item51 - item52;
-        const item54 = Math.max(0, item53 * 0.08), item55 = priorCredit, item56 = previousPaid, item57 = cumulativeCWT;
-        const item58 = forms.reduce((sum, f) => sum + parseAmount(f?.total_tax_withheld), 0);
-        const item62 = item55 + item56 + item57 + item58, item63 = item54 - item62;
-        const qPayment = payments?.find((p: any) => p.quarter === qNum)?.amount_paid || 0;
-        qSummaries.push({ quarter: q, forms: forms.length, item47, item49: item47, item50, item51, item52, item53, item54, item55, item56, item57, item58, item62, item63, paid: qPayment, isOverpayment: item63 < 0, isNoTaxDue: item54 === 0 && item63 <= 0, rawForms: forms });
-        cumulativeIncome = item51; cumulativeCWT += item58; previousPaid += qPayment;
-      }
-      setSummary({ client, quarters: qSummaries, totalForms: forms2307.length, priorCredit });
-    } catch (err) { console.error(err); } finally { setLoading(false); }
-  };
-
   const handleExportExcel = () => {
     if (!summary) return;
     const rows: any[] = [];
@@ -618,9 +663,9 @@ export default function TaxPage() {
     rows.push(["Tax Year", year]);
     rows.push(["Tax Type", summary.client.tax_type || "8%"]);
     rows.push([]);
-    rows.push(["Quarter", "2307s", "Quarterly Income", "Cumulative Income", "Taxable Income", "Tax Due (8%)", "CWT This Quarter", "Total Credits", "Tax Payable / (Overpayment)", "Payment Made"]);
+    rows.push(["Quarter", "2307s", "Manual Entries", "Quarterly Income", "Cumulative Income", "Taxable Income", "Tax Due (8%)", "CWT This Quarter", "Total Credits", "Tax Payable / (Overpayment)", "Payment Made"]);
     summary.quarters.forEach((q: any) => {
-      rows.push([q.quarter, q.forms, q.item47, q.item51, q.item53, q.item54, q.item58, q.item62, q.item63, q.paid || 0]);
+      rows.push([q.quarter, q.forms, q.manualCount || 0, q.item47, q.item51, q.item53, q.item54, q.item58, q.item62, q.item63, q.paid || 0]);
     });
     rows.push([]);
     const lastQ = summary.quarters[summary.quarters.length - 1];
@@ -630,12 +675,13 @@ export default function TaxPage() {
     rows.push(["Annual Tax Due", lastQ?.item54 || 0]);
     rows.push(["Total Credits", lastQ?.item62 || 0]);
     const ws = XLSX.utils.aoa_to_sheet(rows);
-    ws["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 24 }, { wch: 14 }];
+    ws["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 24 }, { wch: 14 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, "Tax Summary");
     const filename = `TaxSummary_${(summary.client.name || "client").replace(/[^a-zA-Z0-9]/g, "_")}_${year}.xlsx`;
     XLSX.writeFile(wb, filename);
   };
+
   const fmt = (n: number) => `P${fmtPeso(Math.abs(n))}`;
   const clients8 = clients.filter(c => (!c.tax_type || c.tax_type === "8%") && (c.name.toLowerCase().includes(search.toLowerCase()) || (c.tin || "").includes(search)));
   const clientsGrad = clients.filter(c => c.tax_type === "graduated" && (c.name.toLowerCase().includes(search.toLowerCase()) || (c.tin || "").includes(search)));
@@ -646,6 +692,8 @@ export default function TaxPage() {
   const activeQ = summary?.quarters.find((q: any) => q.quarter === activeQuarter);
   const drawerOpen = !!editingClient;
   const selectedIndex = clients.findIndex(c => c.id === selected?.id);
+  const activeQManual = manualIncomes.filter(m => m.quarter === parseInt(activeQuarter.replace("Q", "")) && m.year === parseInt(year));
+  const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", outline: "none" };
 
   const renderClientList = (list: any[], page: number, totalPages: number, setPage: (fn: (p: number) => number) => void) => (
     <div>
@@ -711,19 +759,11 @@ export default function TaxPage() {
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "16px 18px", background: "#1a1a1a", border: `0.5px solid ${batchEmailSending ? "rgba(59,130,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 14, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxWidth: 360, width: "100%" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: batchEmailSending ? 10 : 0 }}>
             <i className={`ti ti-${batchEmailSending ? "loader-2" : "circle-check"}`} style={{ fontSize: 16, color: batchEmailSending ? "#93c5fd" : "#6ee7b7", flexShrink: 0 }} />
-            <p style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
-              {batchEmailStatus || "Sending emails..."}
-            </p>
+            <p style={{ fontSize: 13, color: "#fff", flex: 1, minWidth: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{batchEmailStatus || "Sending emails..."}</p>
           </div>
           {batchEmailSending && (
             <div style={{ width: "100%", height: 4, background: "rgba(255,255,255,0.08)", borderRadius: 4, overflow: "hidden" }}>
-              <div style={{
-                height: "100%",
-                borderRadius: 4,
-                background: "linear-gradient(90deg, #3b82f6, #6366f1)",
-                width: `${batchEmailProgress}%`,
-                transition: "width 0.4s ease",
-              }} />
+              <div style={{ height: "100%", borderRadius: 4, background: "linear-gradient(90deg, #3b82f6, #6366f1)", width: `${batchEmailProgress}%`, transition: "width 0.4s ease" }} />
             </div>
           )}
         </div>
@@ -787,8 +827,6 @@ export default function TaxPage() {
                       </button>
                     ))}
                   </div>
-
-                  {/* Selected client bar with prev/next */}
                   {selected && !showList && (
                     <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(99,102,241,0.08)" }}>
                       <div style={{ minWidth: 0, flex: 1 }}>
@@ -798,22 +836,11 @@ export default function TaxPage() {
                       <div style={{ display: "flex", gap: 4, flexShrink: 0, marginLeft: 8 }}>
                         <button onClick={() => openEdit(selected)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
                         <button onClick={() => setListOpen(true)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Change</button>
-                        <button
-                          onClick={() => { const prev = clients[selectedIndex - 1]; if (prev) computeSummary(prev); }}
-                          disabled={selectedIndex <= 0}
-                          style={{ padding: "3px 7px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: selectedIndex <= 0 ? "default" : "pointer", fontFamily: "inherit", opacity: selectedIndex <= 0 ? 0.3 : 1 }}>
-                          {"<"}
-                        </button>
-                        <button
-                          onClick={() => { const next = clients[selectedIndex + 1]; if (next) computeSummary(next); }}
-                          disabled={selectedIndex >= clients.length - 1}
-                          style={{ padding: "3px 7px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 6, color: "#a5b4fc", fontSize: 11, cursor: selectedIndex >= clients.length - 1 ? "default" : "pointer", fontFamily: "inherit", opacity: selectedIndex >= clients.length - 1 ? 0.3 : 1 }}>
-                          {">"}
-                        </button>
+                        <button onClick={() => { const prev = clients[selectedIndex - 1]; if (prev) computeSummary(prev); }} disabled={selectedIndex <= 0} style={{ padding: "3px 7px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: selectedIndex <= 0 ? "default" : "pointer", fontFamily: "inherit", opacity: selectedIndex <= 0 ? 0.3 : 1 }}>{"<"}</button>
+                        <button onClick={() => { const next = clients[selectedIndex + 1]; if (next) computeSummary(next); }} disabled={selectedIndex >= clients.length - 1} style={{ padding: "3px 7px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 6, color: "#a5b4fc", fontSize: 11, cursor: selectedIndex >= clients.length - 1 ? "default" : "pointer", fontFamily: "inherit", opacity: selectedIndex >= clients.length - 1 ? 0.3 : 1 }}>{">"}</button>
                       </div>
                     </div>
                   )}
-
                   <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
                     <input placeholder="Search name or TIN..." value={search} onChange={e => { setSearch(e.target.value); setListOpen(true); }} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit" }} />
                   </div>
@@ -879,7 +906,10 @@ export default function TaxPage() {
                                   <span style={{ position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: "50%", background: "#6ee7b7", boxShadow: "0 0 6px #6ee7b7" }} />
                                 )}
                                 <p style={{ fontSize: 13, fontWeight: 600, color: isActive ? "#fff" : "rgba(255,255,255,0.4)", marginBottom: 4 }}>{q.quarter}</p>
-                                <p style={{ fontSize: 11, color: isActive ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)" }}>{q.forms} 2307{q.forms !== 1 ? "s" : ""}</p>
+                                <p style={{ fontSize: 11, color: isActive ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)" }}>
+                                  {q.forms} 2307{q.forms !== 1 ? "s" : ""}
+                                  {q.manualCount > 0 && <span style={{ color: isActive ? "rgba(251,191,36,0.9)" : "rgba(251,191,36,0.4)" }}> · {q.manualCount} manual</span>}
+                                </p>
                                 <p style={{ fontSize: 11, fontWeight: 600, color: labelColor, marginTop: 4 }}>{label}</p>
                                 {submissions[q.quarter] && (
                                   <p style={{ fontSize: 10, color: isActive ? "rgba(255,255,255,0.6)" : "#6ee7b7", marginTop: 3 }}>Sent</p>
@@ -898,6 +928,9 @@ export default function TaxPage() {
                                   <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, background: activeQ.forms > 0 ? "rgba(16,185,129,0.15)" : "rgba(255,255,255,0.05)", color: activeQ.forms > 0 ? "#6ee7b7" : "rgba(255,255,255,0.3)", border: `0.5px solid ${activeQ.forms > 0 ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.08)"}` }}>
                                     {activeQ.forms} 2307{activeQ.forms !== 1 ? "s" : ""}
                                   </span>
+                                  <button onClick={() => setShowManualForm(!showManualForm)} style={{ padding: "4px 12px", background: showManualForm ? "rgba(251,191,36,0.2)" : "rgba(251,191,36,0.1)", border: `0.5px solid ${showManualForm ? "rgba(251,191,36,0.5)" : "rgba(251,191,36,0.25)"}`, borderRadius: 8, color: "#fcd34d", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+                                    <i className="ti ti-plus" style={{ fontSize: 12 }} /> Add Income
+                                  </button>
                                   {activeQ.forms > 0 && (
                                     <div style={{ display: "flex", gap: 6 }}>
                                       <button onClick={() => handleGenerateSAWT(summary.client, parseInt(activeQ.quarter.replace("Q", "")), activeQ.rawForms)} style={{ padding: "4px 12px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 8, color: "#6ee7b7", fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
@@ -912,6 +945,76 @@ export default function TaxPage() {
                                 {sendStatus && <div style={{ fontSize: 11, color: "#6ee7b7" }}>{sendStatus}</div>}
                               </div>
                             </div>
+
+                            {/* Manual Income Form */}
+                            {showManualForm && (
+                              <div style={{ marginBottom: 16, padding: "14px 16px", background: "rgba(251,191,36,0.05)", border: "0.5px solid rgba(251,191,36,0.2)", borderRadius: 12 }}>
+                                <p style={{ fontSize: 12, fontWeight: 600, color: "#fcd34d", marginBottom: 10 }}>
+                                  <i className="ti ti-pencil" style={{ fontSize: 12, marginRight: 4 }} />
+                                  Add Manual Income — {activeQ.quarter} {year}
+                                </p>
+                                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+                                  <div style={{ gridColumn: "1 / -1" }}>
+                                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>Payor / Source Name *</p>
+                                    <input placeholder="e.g. ABC Company, Freelance Client" value={manualPayorName} onChange={e => setManualPayorName(e.target.value)} style={inputStyle} />
+                                  </div>
+                                  <div>
+                                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>Gross Income *</p>
+                                    <input type="number" placeholder="0.00" value={manualGrossIncome} onChange={e => setManualGrossIncome(e.target.value)} style={inputStyle} />
+                                  </div>
+                                  <div>
+                                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>Tax Withheld (0 if none)</p>
+                                    <input type="number" placeholder="0.00" value={manualTaxWithheld} onChange={e => setManualTaxWithheld(e.target.value)} style={inputStyle} />
+                                  </div>
+                                  <div>
+                                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>Source Type</p>
+                                    <select value={manualSourceType} onChange={e => setManualSourceType(e.target.value)} style={{ ...inputStyle, cursor: "pointer" }}>
+                                      <option value="manual_entry">Manual Entry</option>
+                                      <option value="official_receipt">Official Receipt</option>
+                                      <option value="sales_invoice">Sales Invoice</option>
+                                      <option value="bank_statement">Bank Statement</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginBottom: 4 }}>Notes (optional)</p>
+                                    <input placeholder="e.g. Q2 service fee" value={manualNotes} onChange={e => setManualNotes(e.target.value)} style={inputStyle} />
+                                  </div>
+                                </div>
+                                <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                                  <button onClick={() => setShowManualForm(false)} style={{ padding: "7px 14px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                                  <button onClick={handleSaveManualIncome} disabled={manualSaving || !manualPayorName.trim() || !manualGrossIncome.trim()} style={{ padding: "7px 16px", background: manualSaving || !manualPayorName.trim() || !manualGrossIncome.trim() ? "rgba(255,255,255,0.06)" : "rgba(251,191,36,0.2)", border: `0.5px solid ${manualSaving ? "rgba(255,255,255,0.1)" : "rgba(251,191,36,0.4)"}`, borderRadius: 8, color: manualSaving || !manualPayorName.trim() || !manualGrossIncome.trim() ? "rgba(255,255,255,0.3)" : "#fcd34d", fontSize: 12, fontWeight: 600, cursor: manualSaving ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5 }}>
+                                    {manualSaving ? <><i className="ti ti-loader-2" style={{ fontSize: 12 }} /> Saving...</> : <><i className="ti ti-check" style={{ fontSize: 12 }} /> Save Entry</>}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
+                            {/* Manual Income List */}
+                            {activeQManual.length > 0 && (
+                              <div style={{ marginBottom: 16 }}>
+                                <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(251,191,36,0.6)", marginBottom: 8, textTransform: "uppercase", letterSpacing: "0.5px" }}>Manual Income Entries</p>
+                                <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                                  {activeQManual.map((m: any) => (
+                                    <div key={m.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "rgba(251,191,36,0.05)", border: "0.5px solid rgba(251,191,36,0.15)", borderRadius: 8 }}>
+                                      <div style={{ flex: 1, minWidth: 0 }}>
+                                        <p style={{ fontSize: 12, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{m.payor_name}</p>
+                                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{m.source_type?.replace(/_/g, " ")}{m.notes && ` · ${m.notes}`}</p>
+                                      </div>
+                                      <div style={{ display: "flex", alignItems: "center", gap: 12, flexShrink: 0, marginLeft: 12 }}>
+                                        <div style={{ textAlign: "right" }}>
+                                          <p style={{ fontSize: 12, fontWeight: 600, color: "#fcd34d" }}>P{fmtPeso(m.gross_income)}</p>
+                                          {m.tax_withheld > 0 && <p style={{ fontSize: 10, color: "#6ee7b7" }}>CWT: P{fmtPeso(m.tax_withheld)}</p>}
+                                        </div>
+                                        <button onClick={() => handleDeleteManualIncome(m.id)} style={{ width: 24, height: 24, background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 6, color: "#fca5a5", fontSize: 11, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>
+                                          <i className="ti ti-x" style={{ fontSize: 11 }} />
+                                        </button>
+                                      </div>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
                               <div>
                                 <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 10, textTransform: "uppercase" }}>Schedule II — Income</p>
@@ -980,21 +1083,12 @@ export default function TaxPage() {
                           </div>
                         </div>
 
-                        {/* Bottom right prev/next navigation */}
                         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 16 }}>
-                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-                            {selectedIndex + 1} of {clients.length}
-                          </span>
-                          <button
-                            onClick={() => { const prev = clients[selectedIndex - 1]; if (prev) computeSummary(prev); }}
-                            disabled={selectedIndex <= 0}
-                            style={{ padding: "7px 14px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: selectedIndex <= 0 ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, opacity: selectedIndex <= 0 ? 0.3 : 1 }}>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{selectedIndex + 1} of {clients.length}</span>
+                          <button onClick={() => { const prev = clients[selectedIndex - 1]; if (prev) computeSummary(prev); }} disabled={selectedIndex <= 0} style={{ padding: "7px 14px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: selectedIndex <= 0 ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, opacity: selectedIndex <= 0 ? 0.3 : 1 }}>
                             <i className="ti ti-chevron-left" style={{ fontSize: 13 }} /> Prev
                           </button>
-                          <button
-                            onClick={() => { const next = clients[selectedIndex + 1]; if (next) computeSummary(next); }}
-                            disabled={selectedIndex >= clients.length - 1}
-                            style={{ padding: "7px 14px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 8, color: "#a5b4fc", fontSize: 12, fontWeight: 600, cursor: selectedIndex >= clients.length - 1 ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, opacity: selectedIndex >= clients.length - 1 ? 0.3 : 1 }}>
+                          <button onClick={() => { const next = clients[selectedIndex + 1]; if (next) computeSummary(next); }} disabled={selectedIndex >= clients.length - 1} style={{ padding: "7px 14px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 8, color: "#a5b4fc", fontSize: 12, fontWeight: 600, cursor: selectedIndex >= clients.length - 1 ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, opacity: selectedIndex >= clients.length - 1 ? 0.3 : 1 }}>
                             Next <i className="ti ti-chevron-right" style={{ fontSize: 13 }} />
                           </button>
                         </div>
