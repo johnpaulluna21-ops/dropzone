@@ -526,7 +526,6 @@ export default function TaxPage() {
       const registeredName = (nameParts.length > 1 ? nameParts[1] : nameParts[0]).trim().toUpperCase();
       const confirmed = window.confirm(`Send SAWT to BIR?\n\n${fullName}\nQ${quarterNum} ${year}`);
       if (!confirmed) return;
-      fallbackDownload(result.datFilename, result.datContent, "text/plain");
       const resp = await fetch("/api/sawt/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -561,8 +560,6 @@ export default function TaxPage() {
       const { display: displayTin } = normalizeTin(client.tin || "");
       setBatchEmailStatus(`Sending ${sent + 1} / ${batchEmailClients.length}: ${fullName}...`);
       try {
-        // Save DAT locally before sending
-        fallbackDownload(datFilename, datContent, "text/plain");
         await fetch("/api/sawt/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ datContent, datFilename, clientName: fullName, registeredName, tin: displayTin, quarterNum, year, address: client.address || "" }) });
         await recordSawtSubmission(client.id, quarterNum, parseInt(year), datFilename);
       } catch { /* continue even if one fails */ }
