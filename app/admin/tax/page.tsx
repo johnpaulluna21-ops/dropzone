@@ -808,17 +808,33 @@ const openBatchModal = async (quarterStr: string) => {
                     ))}
                   </div>
                   {selected && !showList && (
-                    <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(99,102,241,0.08)" }}>
-                      <div style={{ minWidth: 0, flex: 1 }}>
-                        <p style={{ fontSize: 12, fontWeight: 500, color: "#a5b4fc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selected.name}</p>
-                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{selected.tin || "No TIN"}</p>
-                      </div>
-                      <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 8 }}>
-                        <button onClick={() => openEdit(selected)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
-                        <button onClick={() => setListOpen(true)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Change</button>
-                      </div>
-                    </div>
-                  )}
+  <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(99,102,241,0.08)" }}>
+    <div style={{ minWidth: 0, flex: 1 }}>
+      <p style={{ fontSize: 12, fontWeight: 500, color: "#a5b4fc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selected.name}</p>
+      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{selected.tin || "No TIN"}</p>
+    </div>
+    <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 8 }}>
+      <button onClick={() => openEdit(selected)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+      <button onClick={() => setListOpen(true)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Change</button>
+      <button
+        onClick={() => {
+          const currentIndex = clients.findIndex(c => c.id === selected.id);
+          const prevClient = clients[currentIndex - 1];
+          if (prevClient) computeSummary(prevClient);
+        }}
+        disabled={clients.findIndex(c => c.id === selected.id) === 0}
+        style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", opacity: clients.findIndex(c => c.id === selected.id) === 0 ? 0.3 : 1 }}>←</button>
+      <button
+        onClick={() => {
+          const currentIndex = clients.findIndex(c => c.id === selected.id);
+          const nextClient = clients[currentIndex + 1];
+          if (nextClient) computeSummary(nextClient);
+        }}
+        disabled={clients.findIndex(c => c.id === selected.id) === clients.length - 1}
+        style={{ padding: "3px 8px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 6, color: "#a5b4fc", fontSize: 11, cursor: "pointer", fontFamily: "inherit", opacity: clients.findIndex(c => c.id === selected.id) === clients.length - 1 ? 0.3 : 1 }}>→</button>
+    </div>
+  </div>
+)}
                   <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
                     <input placeholder="Search name or TIN..." value={search} onChange={e => { setSearch(e.target.value); setListOpen(true); }} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit" }} />
                   </div>
