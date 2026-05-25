@@ -692,7 +692,7 @@ export default function TaxPage() {
   const drawerOpen = !!editingClient;
   const selectedIndex = clients.findIndex(c => c.id === selected?.id);
   const activeQManual = manualIncomes.filter(m => m.quarter === parseInt(activeQuarter.replace("Q", "")) && m.year === parseInt(year));
-  const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", outline: "none" };
+  const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", background: "#111111", border: "0.5px solid rgba(255,255,255,0.15)", borderRadius: 8, color: "#ffffff", fontSize: 12, fontFamily: "inherit", outline: "none" };
 
   const renderClientList = (list: any[], page: number, totalPages: number, setPage: (fn: (p: number) => number) => void) => (
     <div>
