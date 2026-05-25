@@ -77,7 +77,7 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
               <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>BIR SAWT 1701Q — single or batch</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>✕</button>
+          <button onClick={onClose} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>X</button>
         </div>
         <div style={{ padding: "20px" }}>
           <div onDrop={e => { e.preventDefault(); processFiles(Array.from(e.dataTransfer.files)); }} onDragOver={e => e.preventDefault()} onClick={() => fileInputRef.current?.click()} style={{ border: "1.5px dashed rgba(255,255,255,0.12)", borderRadius: 14, padding: "1.5rem", textAlign: "center", cursor: "pointer", background: "rgba(255,255,255,0.02)", marginBottom: 16 }}>
@@ -138,9 +138,9 @@ function DATValidatorModal({ onClose }: { onClose: () => void }) {
                           <td style={{ padding: "5px 8px", borderBottom: "0.5px solid rgba(255,255,255,0.04)", fontFamily: "monospace", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>{l.lineNum}</td>
                           <td style={{ padding: "5px 8px", borderBottom: "0.5px solid rgba(255,255,255,0.04)", fontWeight: 500, color: "#fff", fontSize: 11 }}>{l.type}</td>
                           <td style={{ padding: "5px 8px", borderBottom: "0.5px solid rgba(255,255,255,0.04)" }}>
-                            {l.errors.length === 0 && l.warnings.length === 0 && <span style={{ fontSize: 10, color: "#6ee7b7" }}>● OK</span>}
-                            {l.errors.length > 0 && <><span style={{ fontSize: 10, color: "#fca5a5" }}>● Error</span>{l.errors.map((e, k) => <div key={k} style={{ fontSize: 10, color: "#fca5a5", marginTop: 2 }}>· {e}</div>)}</>}
-                            {l.warnings.length > 0 && <>{l.errors.length === 0 && <span style={{ fontSize: 10, color: "#fcd34d" }}>● Warning</span>}{l.warnings.map((w, k) => <div key={k} style={{ fontSize: 10, color: "#fcd34d", marginTop: 2 }}>⚠ {w}</div>)}</>}
+                            {l.errors.length === 0 && l.warnings.length === 0 && <span style={{ fontSize: 10, color: "#6ee7b7" }}>OK</span>}
+                            {l.errors.length > 0 && <><span style={{ fontSize: 10, color: "#fca5a5" }}>Error</span>{l.errors.map((e, k) => <div key={k} style={{ fontSize: 10, color: "#fca5a5", marginTop: 2 }}>· {e}</div>)}</>}
+                            {l.warnings.length > 0 && <>{l.errors.length === 0 && <span style={{ fontSize: 10, color: "#fcd34d" }}>Warning</span>}{l.warnings.map((w, k) => <div key={k} style={{ fontSize: 10, color: "#fcd34d", marginTop: 2 }}>{w}</div>)}</>}
                           </td>
                         </tr>
                       ))}
@@ -195,7 +195,7 @@ function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm
               <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{quarter} {yearStr} — select clients to include</p>
             </div>
           </div>
-          <button onClick={onClose} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>✕</button>
+          <button onClick={onClose} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>X</button>
         </div>
         <div style={{ padding: "10px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
           <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{selectedCount} of {clientsWithForms.length} clients selected</p>
@@ -285,19 +285,10 @@ export default function TaxPage() {
   const [batchModal, setBatchModal] = useState<{ quarter: string; clientsWithForms: { client: any; forms: ExtractedForm[] }[] } | null>(null);
   const [batchGenerating, setBatchGenerating] = useState(false);
   const [batchStatus, setBatchStatus] = useState("");
-
-  // ── Batch email state ──────────────────────────────────────────────────────
-  const [batchEmailClients, setBatchEmailClients] = useState<{
-    client: any;
-    datContent: string;
-    datFilename: string;
-    quarterNum: number;
-  }[]>([]);
+  const [batchEmailClients, setBatchEmailClients] = useState<{ client: any; datContent: string; datFilename: string; quarterNum: number; }[]>([]);
   const [batchEmailSending, setBatchEmailSending] = useState(false);
   const [batchEmailStatus, setBatchEmailStatus] = useState("");
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const [submissions, setSubmissions] = useState<Record<string, string>>({});
-  // ──────────────────────────────────────────────────────────────────────────
+  const [submissions, setSubmissions] = useState<Record<string, string>>({});
 
   useEffect(() => { fetchClients(); }, []);
   useEffect(() => { setPage8(1); setPageGrad(1); }, [search]);
@@ -306,16 +297,17 @@ const [submissions, setSubmissions] = useState<Record<string, string>>({});
     const { data } = await supabase.from("clients").select("*").order("name");
     setClients(data || []);
   };
+
   const fetchSubmissions = async (clientId: string) => {
-  const { data } = await supabase
-    .from("sawt_submissions")
-    .select("quarter, submitted_at")
-    .eq("client_id", clientId)
-    .eq("year", parseInt(year));
-  const map: Record<string, string> = {};
-  (data || []).forEach((s: any) => { map[`Q${s.quarter}`] = s.submitted_at; });
-  setSubmissions(map);
-};
+    const { data } = await supabase
+      .from("sawt_submissions")
+      .select("quarter, submitted_at")
+      .eq("client_id", clientId)
+      .eq("year", parseInt(year));
+    const map: Record<string, string> = {};
+    (data || []).forEach((s: any) => { map[`Q${s.quarter}`] = s.submitted_at; });
+    setSubmissions(map);
+  };
 
   const openEdit = async (client: any) => {
     setEditingClient(client);
@@ -364,7 +356,14 @@ const [submissions, setSubmissions] = useState<Record<string, string>>({});
 
   const saveEditClient = useCallback(async () => {
     if (!editingClient) return;
-    await supabase.from("clients").update({ tax_type: editTaxType, last_name: editLastName.trim() || null, first_name: editFirstName.trim() || null, middle_name: editMiddleName.trim() || null, rdo_code: editRdo.trim() || null,address: editAddress.trim() || null,}).eq("id", editingClient.id);
+    await supabase.from("clients").update({
+      tax_type: editTaxType,
+      last_name: editLastName.trim() || null,
+      first_name: editFirstName.trim() || null,
+      middle_name: editMiddleName.trim() || null,
+      rdo_code: editRdo.trim() || null,
+      address: editAddress.trim() || null,
+    }).eq("id", editingClient.id);
     if (editCredit) {
       const creditYearInt = parseInt(editCreditYear) || new Date().getFullYear() - 1;
       const { data: existing } = await supabase.from("prior_year_credits").select("id").eq("client_id", editingClient.id).eq("year", creditYearInt).single();
@@ -381,18 +380,16 @@ const [submissions, setSubmissions] = useState<Record<string, string>>({});
       if (existing) { await supabase.from("prior_year_credits").update({ amount_paid: amountPaid }).eq("id", existing.id); }
       else { await supabase.from("tax_payments").insert({ client_id: editingClient.id, year: parseInt(year), quarter: qNum, amount_paid: amountPaid }); }
     }
-    const updatedClient = { ...editingClient, tax_type: editTaxType, last_name: editLastName.trim() || null, first_name: editFirstName.trim() || null, middle_name: editMiddleName.trim() || null, rdo_code: editRdo.trim() || null };
+    const updatedClient = { ...editingClient, tax_type: editTaxType, last_name: editLastName.trim() || null, first_name: editFirstName.trim() || null, middle_name: editMiddleName.trim() || null, rdo_code: editRdo.trim() || null, address: editAddress.trim() || null };
     setEditingClient(null); setEditCredit(""); setEditPayments({ Q1: "", Q2: "", Q3: "" }); setDeletedPayments([]);
     fetchClients();
     if (selected?.id === editingClient.id) { setSelected(updatedClient); computeSummary(updatedClient); }
-  }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editCredit, editCreditYear, editPayments, deletedPayments, fetchClients, selected, year]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editAddress, editCredit, editCreditYear, editPayments, deletedPayments, fetchClients, selected, year]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGenerateSAWT = (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
     const result = generateSAWTContent(
       { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
-      quarterNum,
-      quarterForms,
-      year
+      quarterNum, quarterForms, year
     );
     fallbackDownload(result.datFilename, result.datContent, "text/plain");
     const printWindow = window.open("", "_blank", "width=900,height=600");
@@ -408,9 +405,7 @@ const [submissions, setSubmissions] = useState<Record<string, string>>({});
     try {
       const result = generateSAWTContent(
         { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
-        quarterNum,
-        quarterForms,
-        year
+        quarterNum, quarterForms, year
       );
       const fullName = `${client.first_name || ""} ${client.middle_name ? client.middle_name + " " : ""}${client.last_name || ""}`.trim().toUpperCase();
       const nameParts = (client.name || "").split("/");
@@ -452,7 +447,6 @@ const [submissions, setSubmissions] = useState<Record<string, string>>({});
     }
   };
 
-  // ── Batch email send ───────────────────────────────────────────────────────
   const handleBatchSendEmail = async () => {
     if (batchEmailClients.length === 0) return;
     setBatchEmailSending(true);
@@ -464,44 +458,33 @@ const [submissions, setSubmissions] = useState<Record<string, string>>({});
       const nameParts = (client.name || "").split("/");
       const registeredName = (nameParts.length > 1 ? nameParts[1] : nameParts[0]).trim().toUpperCase();
       const { display: displayTin } = normalizeTin(client.tin || "");
-      setBatchEmailStatus(`Sending ${sent + 1} / ${batchEmailClients.length}: ${fullName}…`);
+      setBatchEmailStatus(`Sending ${sent + 1} / ${batchEmailClients.length}: ${fullName}...`);
       try {
         await fetch("/api/sawt/email", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            datContent,
-            datFilename,
-            clientName: fullName,
-            registeredName,
-            tin: displayTin,
-            quarterNum,
-            year,
-            address: client.address || "",
+            datContent, datFilename, clientName: fullName, registeredName,
+            tin: displayTin, quarterNum, year, address: client.address || "",
           }),
         });
-          await supabase.from("sawt_submissions").upsert({
-            client_id: client.id,
-            quarter: quarterNum,
-            year: parseInt(year),
-            submitted_at: new Date().toISOString(),
-            dat_filename: datFilename,
-          }, { onConflict: "client_id,quarter,year" });
+        await supabase.from("sawt_submissions").upsert({
+          client_id: client.id,
+          quarter: quarterNum,
+          year: parseInt(year),
+          submitted_at: new Date().toISOString(),
+          dat_filename: datFilename,
+        }, { onConflict: "client_id,quarter,year" });
       } catch { /* continue even if one fails */ }
       sent++;
       await new Promise(r => setTimeout(r, 800));
     }
     setBatchEmailSending(false);
-    setBatchEmailStatus(`Done — ${sent} email${sent !== 1 ? "s" : ""} sent.`);
-    setTimeout(() => {
-      setBatchEmailClients([]);
-      setBatchEmailStatus("");
-    }, 4000);
+    setBatchEmailStatus(`Done - ${sent} email${sent !== 1 ? "s" : ""} sent.`);
+    setTimeout(() => { setBatchEmailClients([]); setBatchEmailStatus(""); }, 4000);
   };
-  // ──────────────────────────────────────────────────────────────────────────
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-const openBatchModal = async (quarterStr: string) => {
+  const openBatchModal = async (quarterStr: string) => {
     const qNum = parseInt(quarterStr.replace("Q", ""));
     const { data: uploads } = await supabase.from("uploads").select("*").eq("status", "extracted");
     const allUploads = uploads || [];
@@ -525,14 +508,10 @@ const openBatchModal = async (quarterStr: string) => {
     setBatchModal({ quarter: quarterStr, clientsWithForms: result });
   };
 
-  const runBatchGenerate = async (
-    selectedClients: { client: any; forms: ExtractedForm[] }[],
-    quarterStr: string,
-    folderName: string
-  ) => {
+  const runBatchGenerate = async (selectedClients: { client: any; forms: ExtractedForm[] }[], quarterStr: string, folderName: string) => {
     setBatchModal(null);
     setBatchGenerating(true);
-    setBatchStatus("Preparing files…");
+    setBatchStatus("Preparing files...");
     const qNum = parseInt(quarterStr.replace("Q", ""));
     const lastMonth = qNum * 3;
     const lastMonthPadded = String(lastMonth).padStart(2, "0");
@@ -551,45 +530,23 @@ const openBatchModal = async (quarterStr: string) => {
     let dirHandle: FileSystemDirectoryHandle | null = null;
     if (fsSupported) {
       try {
-        setBatchStatus("Waiting for folder selection…");
+        setBatchStatus("Waiting for folder selection...");
         dirHandle = await (window as any).showDirectoryPicker({ startIn: "downloads", mode: "readwrite", suggestedName: folderName });
-      } catch {
-        setBatchGenerating(false); setBatchStatus(""); return;
-      }
+      } catch { setBatchGenerating(false); setBatchStatus(""); return; }
     }
-    setBatchStatus("Writing summary…");
+    setBatchStatus("Writing summary...");
     if (dirHandle) { await writeFileToDir(dirHandle, summaryFilename, summaryTxt, "text/plain"); }
     else { fallbackDownload(summaryFilename, summaryTxt, "text/plain"); await new Promise(r => setTimeout(r, 500)); }
-
-    // ── Collect email queue while writing files ──────────────────────────────
-    const emailQueue: {
-      client: any;
-      datContent: string;
-      datFilename: string;
-      quarterNum: number;
-    }[] = [];
-    // ────────────────────────────────────────────────────────────────────────
-
+    const emailQueue: { client: any; datContent: string; datFilename: string; quarterNum: number; }[] = [];
     for (let i = 0; i < selectedClients.length; i++) {
       const { client, forms } = selectedClients[i];
       const clientLabel = (client.last_name || client.name || "").toUpperCase().replace(/[^A-Z0-9]/g, "").substring(0, 12);
-      setBatchStatus(`Writing ${i + 1} / ${selectedClients.length}: ${clientLabel}…`);
+      setBatchStatus(`Writing ${i + 1} / ${selectedClients.length}: ${clientLabel}...`);
       const result = generateSAWTContent(
         { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
-        qNum,
-        forms,
-        year
+        qNum, forms, year
       );
-
-      // ── Push to email queue ──────────────────────────────────────────────
-      emailQueue.push({
-        client,
-        datContent: result.datContent,
-        datFilename: result.datFilename,
-        quarterNum: qNum,
-      });
-      // ────────────────────────────────────────────────────────────────────
-
+      emailQueue.push({ client, datContent: result.datContent, datFilename: result.datFilename, quarterNum: qNum });
       const htmlFilename = `SAWT-${result.datFilename.replace(".DAT", "")}-${clientLabel}.html`;
       const htmlWithPrint = result.html.replace("</body>", `<script>window.onload=function(){window.print();}<\/script></body>`);
       if (dirHandle) {
@@ -602,17 +559,14 @@ const openBatchModal = async (quarterStr: string) => {
         await new Promise(r => setTimeout(r, 800));
       }
     }
-
-    // ── Make email queue available to the UI ─────────────────────────────────
     setBatchEmailClients(emailQueue);
-    // ────────────────────────────────────────────────────────────────────────
-
     setBatchGenerating(false);
     setBatchStatus("");
   };
 
   const computeSummary = async (client: any) => {
-    setSelected(client); setListOpen(false); setActiveQuarter("Q1"); setLoading(true);fetchSubmissions(client.id);
+    setSelected(client); setListOpen(false); setActiveQuarter("Q1"); setLoading(true);
+    fetchSubmissions(client.id);
     try {
       const { data: uploads } = await supabase.from("uploads").select("*").eq("status", "extracted");
       const forms2307 = (uploads || []).filter(u => {
@@ -650,7 +604,7 @@ const openBatchModal = async (quarterStr: string) => {
     } catch (err) { console.error(err); } finally { setLoading(false); }
   };
 
-  const fmt = (n: number) => `₱${fmtPeso(Math.abs(n))}`;
+  const fmt = (n: number) => `P${fmtPeso(Math.abs(n))}`;
   const clients8 = clients.filter(c => (!c.tax_type || c.tax_type === "8%") && (c.name.toLowerCase().includes(search.toLowerCase()) || (c.tin || "").includes(search)));
   const clientsGrad = clients.filter(c => c.tax_type === "graduated" && (c.name.toLowerCase().includes(search.toLowerCase()) || (c.tin || "").includes(search)));
   const totalPages8 = Math.ceil(clients8.length / PAGE_SIZE), totalPagesGrad = Math.ceil(clientsGrad.length / PAGE_SIZE);
@@ -659,6 +613,7 @@ const openBatchModal = async (quarterStr: string) => {
   const showList = listOpen || search.length > 0;
   const activeQ = summary?.quarters.find((q: any) => q.quarter === activeQuarter);
   const drawerOpen = !!editingClient;
+  const selectedIndex = clients.findIndex(c => c.id === selected?.id);
 
   const renderClientList = (list: any[], page: number, totalPages: number, setPage: (fn: (p: number) => number) => void) => (
     <div>
@@ -699,15 +654,13 @@ const openBatchModal = async (quarterStr: string) => {
       {showValidator && <DATValidatorModal onClose={() => setShowValidator(false)} />}
       {batchModal && <BatchSAWTModal quarter={batchModal.quarter} yearStr={year} clientsWithForms={batchModal.clientsWithForms} onClose={() => setBatchModal(null)} onConfirm={runBatchGenerate} />}
 
-      {/* Batch generating progress toast */}
       {batchGenerating && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
           <i className="ti ti-loader-2" style={{ fontSize: 16, color: "#a5b4fc" }} />
-          <p style={{ fontSize: 13, color: "#fff" }}>{batchStatus || "Generating batch SAWT files…"}</p>
+          <p style={{ fontSize: 13, color: "#fff" }}>{batchStatus || "Generating batch SAWT files..."}</p>
         </div>
       )}
 
-      {/* "Ready to send" toast — appears after batch generate completes */}
       {batchEmailClients.length > 0 && !batchEmailSending && !batchEmailStatus && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "14px 18px", background: "#1a1a1a", border: "0.5px solid rgba(59,130,246,0.35)", borderRadius: 12, display: "flex", alignItems: "center", gap: 12, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxWidth: 400 }}>
           <i className="ti ti-mail" style={{ fontSize: 18, color: "#93c5fd", flexShrink: 0 }} />
@@ -715,27 +668,17 @@ const openBatchModal = async (quarterStr: string) => {
             <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>{batchEmailClients.length} DAT file{batchEmailClients.length !== 1 ? "s" : ""} ready</p>
             <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>Send all to BIR eSubmission?</p>
           </div>
-          <button
-            onClick={handleBatchSendEmail}
-            style={{ padding: "7px 14px", background: "rgba(59,130,246,0.2)", border: "0.5px solid rgba(59,130,246,0.4)", borderRadius: 8, color: "#93c5fd", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}
-          >
+          <button onClick={handleBatchSendEmail} style={{ padding: "7px 14px", background: "rgba(59,130,246,0.2)", border: "0.5px solid rgba(59,130,246,0.4)", borderRadius: 8, color: "#93c5fd", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, display: "flex", alignItems: "center", gap: 5 }}>
             <i className="ti ti-send" style={{ fontSize: 12 }} /> Send All
           </button>
-          <button
-            onClick={() => setBatchEmailClients([])}
-            style={{ width: 26, height: 26, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", flexShrink: 0 }}
-          >✕</button>
+          <button onClick={() => setBatchEmailClients([])} style={{ width: 26, height: 26, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 14, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", flexShrink: 0 }}>X</button>
         </div>
       )}
 
-      {/* Sending progress / done toast */}
       {(batchEmailSending || batchEmailStatus) && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: `0.5px solid ${batchEmailSending ? "rgba(59,130,246,0.3)" : "rgba(16,185,129,0.3)"}`, borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)", maxWidth: 400 }}>
-          <i
-            className={`ti ti-${batchEmailSending ? "loader-2" : "circle-check"}`}
-            style={{ fontSize: 16, color: batchEmailSending ? "#93c5fd" : "#6ee7b7", flexShrink: 0 }}
-          />
-          <p style={{ fontSize: 13, color: "#fff" }}>{batchEmailStatus || "Sending emails…"}</p>
+          <i className={`ti ti-${batchEmailSending ? "loader-2" : "circle-check"}`} style={{ fontSize: 16, color: batchEmailSending ? "#93c5fd" : "#6ee7b7", flexShrink: 0 }} />
+          <p style={{ fontSize: 13, color: "#fff" }}>{batchEmailStatus || "Sending emails..."}</p>
         </div>
       )}
 
@@ -752,27 +695,13 @@ const openBatchModal = async (quarterStr: string) => {
                   <h1 style={{ fontSize: 18, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>Tax Summary Engine</h1>
                   <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>BIR 1701Q — Income Tax Compliance</p>
                 </div>
-                <button
-  onClick={handleBatchSendEmail}
-  disabled={batchEmailClients.length === 0 || batchEmailSending}
-  style={{
-    display: "flex", alignItems: "center", gap: 6, padding: "8px 14px",
-    background: batchEmailClients.length > 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)",
-    border: `0.5px solid ${batchEmailClients.length > 0 ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`,
-    borderRadius: 10,
-    color: batchEmailClients.length > 0 ? "#93c5fd" : "rgba(255,255,255,0.2)",
-    fontSize: 13, fontWeight: 600,
-    cursor: batchEmailClients.length === 0 || batchEmailSending ? "default" : "pointer",
-    fontFamily: "inherit",
-    opacity: batchEmailSending ? 0.5 : 1,
-  }}
->
-  <i className="ti ti-send" style={{ fontSize: 14 }} />
-  {batchEmailClients.length > 0 ? `Send All (${batchEmailClients.length})` : "Send All"}
-</button>
-<button onClick={() => openBatchModal(activeQuarter)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.1)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-  <i className="ti ti-folders" style={{ fontSize: 14 }} /> Batch SAWT
-</button>
+                <button onClick={handleBatchSendEmail} disabled={batchEmailClients.length === 0 || batchEmailSending} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: batchEmailClients.length > 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${batchEmailClients.length > 0 ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: batchEmailClients.length > 0 ? "#93c5fd" : "rgba(255,255,255,0.2)", fontSize: 13, fontWeight: 600, cursor: batchEmailClients.length === 0 || batchEmailSending ? "default" : "pointer", fontFamily: "inherit", opacity: batchEmailSending ? 0.5 : 1 }}>
+                  <i className="ti ti-send" style={{ fontSize: 14 }} />
+                  {batchEmailClients.length > 0 ? `Send All (${batchEmailClients.length})` : "Send All"}
+                </button>
+                <button onClick={() => openBatchModal(activeQuarter)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.1)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                  <i className="ti ti-folders" style={{ fontSize: 14 }} /> Batch SAWT
+                </button>
                 <button onClick={() => setShowValidator(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.1)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
                   <i className="ti ti-shield-check" style={{ fontSize: 14 }} /> Validate DAT
                 </button>
@@ -790,6 +719,7 @@ const openBatchModal = async (quarterStr: string) => {
 
               <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16 }}>
 
+                {/* Client Panel */}
                 <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", alignSelf: "start" }}>
                   <div style={{ padding: "16px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Clients ({clients.length})</p>
@@ -807,35 +737,33 @@ const openBatchModal = async (quarterStr: string) => {
                       </button>
                     ))}
                   </div>
-                  {selected && !showList && (
-  <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(99,102,241,0.08)" }}>
-    <div style={{ minWidth: 0, flex: 1 }}>
-      <p style={{ fontSize: 12, fontWeight: 500, color: "#a5b4fc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selected.name}</p>
-      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{selected.tin || "No TIN"}</p>
-    </div>
-    <div style={{ display: "flex", gap: 6, flexShrink: 0, marginLeft: 8 }}>
-      <button onClick={() => openEdit(selected)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
-      <button onClick={() => setListOpen(true)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Change</button>
-      <button
-        onClick={() => {
-          const currentIndex = clients.findIndex(c => c.id === selected.id);
-          const prevClient = clients[currentIndex - 1];
-          if (prevClient) computeSummary(prevClient);
-        }}
-        disabled={clients.findIndex(c => c.id === selected.id) === 0}
-        style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", opacity: clients.findIndex(c => c.id === selected.id) === 0 ? 0.3 : 1 }}>←</button>
-      <button
-        onClick={() => {
-          const currentIndex = clients.findIndex(c => c.id === selected.id);
 
-          const nextClient = clients[currentIndex + 1];
-          if (nextClient) computeSummary(nextClient);
-        }}
-        disabled={clients.findIndex(c => c.id === selected.id) === clients.length - 1}
-        style={{ padding: "3px 8px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 6, color: "#a5b4fc", fontSize: 11, cursor: "pointer", fontFamily: "inherit", opacity: clients.findIndex(c => c.id === selected.id) === clients.length - 1 ? 0.3 : 1 }}><i className="ti ti-chevron-right" style={{ fontSize: 12 }} /></button>
-    </div>
-  </div>
-)}
+                  {/* Selected client bar with prev/next */}
+                  {selected && !showList && (
+                    <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(99,102,241,0.08)" }}>
+                      <div style={{ minWidth: 0, flex: 1 }}>
+                        <p style={{ fontSize: 12, fontWeight: 500, color: "#a5b4fc", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selected.name}</p>
+                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{selected.tin || "No TIN"}</p>
+                      </div>
+                      <div style={{ display: "flex", gap: 4, flexShrink: 0, marginLeft: 8 }}>
+                        <button onClick={() => openEdit(selected)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Edit</button>
+                        <button onClick={() => setListOpen(true)} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Change</button>
+                        <button
+                          onClick={() => { const prev = clients[selectedIndex - 1]; if (prev) computeSummary(prev); }}
+                          disabled={selectedIndex <= 0}
+                          style={{ padding: "3px 7px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: selectedIndex <= 0 ? "default" : "pointer", fontFamily: "inherit", opacity: selectedIndex <= 0 ? 0.3 : 1 }}>
+                          <i className="ti ti-chevron-left" style={{ fontSize: 12 }} />
+                        </button>
+                        <button
+                          onClick={() => { const next = clients[selectedIndex + 1]; if (next) computeSummary(next); }}
+                          disabled={selectedIndex >= clients.length - 1}
+                          style={{ padding: "3px 7px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 6, color: "#a5b4fc", fontSize: 11, cursor: selectedIndex >= clients.length - 1 ? "default" : "pointer", fontFamily: "inherit", opacity: selectedIndex >= clients.length - 1 ? 0.3 : 1 }}>
+                          <i className="ti ti-chevron-right" style={{ fontSize: 12 }} />
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
                   <div style={{ padding: "10px 16px", borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>
                     <input placeholder="Search name or TIN..." value={search} onChange={e => { setSearch(e.target.value); setListOpen(true); }} style={{ width: "100%", padding: "7px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit" }} />
                   </div>
@@ -852,7 +780,7 @@ const openBatchModal = async (quarterStr: string) => {
                       <input placeholder="First Name" value={newFirstName} onChange={e => setNewFirstName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6 }} />
                       <input placeholder="Middle Name" value={newMiddleName} onChange={e => setNewMiddleName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6 }} />
                       <input placeholder="RDO Code (e.g. 015)" value={newRdo} onChange={e => setNewRdo(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
-                      <input placeholder="Prior year excess credit (₱)" value={newCredit} onChange={e => setNewCredit(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
+                      <input placeholder="Prior year excess credit" value={newCredit} onChange={e => setNewCredit(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
                       <input placeholder="Credit from year (e.g. 2025)" value={creditYear} onChange={e => setCreditYear(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 8 }} />
                       <button onClick={addClient} style={{ width: "100%", padding: "8px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", border: "none", borderRadius: 8, color: "#fff", fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>Save Client</button>
                     </div>
@@ -860,6 +788,7 @@ const openBatchModal = async (quarterStr: string) => {
                   {showList && (activeFolderTab === "8%" ? renderClientList(pagedClients8, page8, totalPages8, setPage8) : renderClientList(pagedClientsGrad, pageGrad, totalPagesGrad, setPageGrad))}
                 </div>
 
+                {/* Summary Panel */}
                 <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem", overflowY: "auto" }}>
                   {loading ? (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
@@ -887,6 +816,8 @@ const openBatchModal = async (quarterStr: string) => {
                             </div>
                           )}
                         </div>
+
+                        {/* Quarter tabs */}
                         <div style={{ display: "flex", gap: 6, marginBottom: "1.25rem" }}>
                           {summary.quarters.map((q: any) => {
                             const isActive = activeQuarter === q.quarter;
@@ -894,19 +825,20 @@ const openBatchModal = async (quarterStr: string) => {
                             const labelColor = q.isNoTaxDue ? (isActive ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.2)") : q.isOverpayment ? "#6ee7b7" : (isActive ? "#fcd34d" : "rgba(252,211,77,0.5)");
                             return (
                               <button key={q.quarter} onClick={() => setActiveQuarter(q.quarter)} style={{ flex: 1, padding: "10px 8px", borderRadius: 12, cursor: "pointer", fontFamily: "inherit", background: isActive ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.04)", border: isActive ? "none" : "0.5px solid rgba(255,255,255,0.08)", transition: "all 0.15s", position: "relative" }}>
-  {submissions[q.quarter] && (
-    <span style={{ position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: "50%", background: "#6ee7b7", boxShadow: "0 0 6px #6ee7b7" }} />
-  )}
-  <p style={{ fontSize: 13, fontWeight: 600, color: isActive ? "#fff" : "rgba(255,255,255,0.4)", marginBottom: 4 }}>{q.quarter}</p>
-  <p style={{ fontSize: 11, color: isActive ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)" }}>{q.forms} 2307{q.forms !== 1 ? "s" : ""}</p>
-  <p style={{ fontSize: 11, fontWeight: 600, color: labelColor, marginTop: 4 }}>{label}</p>
-  {submissions[q.quarter] && (
-    <p style={{ fontSize: 10, color: isActive ? "rgba(255,255,255,0.6)" : "#6ee7b7", marginTop: 3 }}>✓ Sent</p>
-  )}
-</button>
+                                {submissions[q.quarter] && (
+                                  <span style={{ position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: "50%", background: "#6ee7b7", boxShadow: "0 0 6px #6ee7b7" }} />
+                                )}
+                                <p style={{ fontSize: 13, fontWeight: 600, color: isActive ? "#fff" : "rgba(255,255,255,0.4)", marginBottom: 4 }}>{q.quarter}</p>
+                                <p style={{ fontSize: 11, color: isActive ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)" }}>{q.forms} 2307{q.forms !== 1 ? "s" : ""}</p>
+                                <p style={{ fontSize: 11, fontWeight: 600, color: labelColor, marginTop: 4 }}>{label}</p>
+                                {submissions[q.quarter] && (
+                                  <p style={{ fontSize: 10, color: isActive ? "rgba(255,255,255,0.6)" : "#6ee7b7", marginTop: 3 }}>Sent</p>
+                                )}
+                              </button>
                             );
                           })}
                         </div>
+
                         {activeQ && (
                           <div style={{ padding: "20px", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 16, marginBottom: "1.5rem" }}>
                             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
@@ -927,11 +859,7 @@ const openBatchModal = async (quarterStr: string) => {
                                     </div>
                                   )}
                                 </div>
-                                {sendStatus && (
-                                  <div style={{ fontSize: 11, color: "#6ee7b7" }}>
-                                    {sendStatus}
-                                  </div>
-                                )}
+                                {sendStatus && <div style={{ fontSize: 11, color: "#6ee7b7" }}>{sendStatus}</div>}
                               </div>
                             </div>
                             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
@@ -942,7 +870,7 @@ const openBatchModal = async (quarterStr: string) => {
                                     { label: "47 · Quarterly Income", value: fmt(activeQ.item47), color: "#fff" },
                                     { label: "50 · Add: Prev Quarters", value: fmt(activeQ.item50), color: "#fff" },
                                     { label: "51 · Cumulative Income", value: fmt(activeQ.item51), color: "#fff", bold: true },
-                                    { label: "52 · Less: ₱250,000", value: `(${fmt(activeQ.item52)})`, color: "#6ee7b7" },
+                                    { label: "52 · Less: P250,000", value: `(${fmt(activeQ.item52)})`, color: "#6ee7b7" },
                                     { label: "53 · Taxable Income", value: activeQ.item53 < 0 ? `(${fmt(activeQ.item53)})` : fmt(activeQ.item53), color: activeQ.item53 < 0 ? "#fca5a5" : "#fff", bold: true },
                                     { label: "54 · Tax Due (8%)", value: fmt(activeQ.item54), color: "#a5b4fc", bold: true },
                                   ].map(row => (
@@ -971,7 +899,7 @@ const openBatchModal = async (quarterStr: string) => {
                                 </div>
                                 <div style={{ marginTop: 16, padding: "14px 16px", background: activeQ.isNoTaxDue ? "rgba(255,255,255,0.03)" : activeQ.isOverpayment ? "rgba(16,185,129,0.08)" : "rgba(252,211,77,0.06)", border: `0.5px solid ${activeQ.isNoTaxDue ? "rgba(255,255,255,0.08)" : activeQ.isOverpayment ? "rgba(16,185,129,0.25)" : "rgba(252,211,77,0.2)"}`, borderRadius: 12, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                   <span style={{ fontSize: 14, fontWeight: 700, color: activeQ.isNoTaxDue ? "rgba(255,255,255,0.4)" : activeQ.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>63 · {activeQ.isNoTaxDue ? "No Tax Due" : activeQ.isOverpayment ? "Overpayment" : "Tax Payable"}</span>
-                                  <span style={{ fontSize: 16, fontWeight: 700, color: activeQ.isNoTaxDue ? "rgba(255,255,255,0.4)" : activeQ.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>{activeQ.isNoTaxDue ? "₱0.00" : activeQ.isOverpayment ? `(${fmt(activeQ.item63)})` : fmt(activeQ.item63)}</span>
+                                  <span style={{ fontSize: 16, fontWeight: 700, color: activeQ.isNoTaxDue ? "rgba(255,255,255,0.4)" : activeQ.isOverpayment ? "#6ee7b7" : "#fcd34d" }}>{activeQ.isNoTaxDue ? "P0.00" : activeQ.isOverpayment ? `(${fmt(activeQ.item63)})` : fmt(activeQ.item63)}</span>
                                 </div>
                                 {activeQ.paid > 0 && (
                                   <div style={{ marginTop: 8, padding: "10px 14px", background: "rgba(99,102,241,0.06)", border: "0.5px solid rgba(99,102,241,0.2)", borderRadius: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -983,6 +911,8 @@ const openBatchModal = async (quarterStr: string) => {
                             </div>
                           </div>
                         )}
+
+                        {/* Annual Summary */}
                         <div style={{ padding: "16px", background: "rgba(99,102,241,0.06)", border: "0.5px solid rgba(99,102,241,0.2)", borderRadius: 14 }}>
                           <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Annual Summary {year}</p>
                           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
@@ -998,6 +928,25 @@ const openBatchModal = async (quarterStr: string) => {
                               </div>
                             ))}
                           </div>
+                        </div>
+
+                        {/* Bottom right prev/next navigation */}
+                        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 16 }}>
+                          <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
+                            {selectedIndex + 1} of {clients.length}
+                          </span>
+                          <button
+                            onClick={() => { const prev = clients[selectedIndex - 1]; if (prev) computeSummary(prev); }}
+                            disabled={selectedIndex <= 0}
+                            style={{ padding: "7px 14px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: selectedIndex <= 0 ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, opacity: selectedIndex <= 0 ? 0.3 : 1 }}>
+                            <i className="ti ti-chevron-left" style={{ fontSize: 13 }} /> Prev
+                          </button>
+                          <button
+                            onClick={() => { const next = clients[selectedIndex + 1]; if (next) computeSummary(next); }}
+                            disabled={selectedIndex >= clients.length - 1}
+                            style={{ padding: "7px 14px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 8, color: "#a5b4fc", fontSize: 12, fontWeight: 600, cursor: selectedIndex >= clients.length - 1 ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 5, opacity: selectedIndex >= clients.length - 1 ? 0.3 : 1 }}>
+                            Next <i className="ti ti-chevron-right" style={{ fontSize: 13 }} />
+                          </button>
                         </div>
                       </>
                     )
@@ -1015,13 +964,14 @@ const openBatchModal = async (quarterStr: string) => {
           </main>
         </div>
 
+        {/* Edit Drawer */}
         <div style={{ position: "fixed", top: 0, right: 0, height: "100vh", width: "320px", background: "#1a1a1a", borderLeft: "0.5px solid rgba(255,255,255,0.08)", zIndex: 100, display: "flex", flexDirection: "column", transform: drawerOpen ? "translateX(0)" : "translateX(100%)", transition: "transform 0.25s ease", overflowY: "auto" }}>
           <div style={{ padding: "20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <div style={{ minWidth: 0, flex: 1 }}>
               <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Edit Client</p>
               <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{editingClient?.name}</p>
             </div>
-            <button onClick={() => { setEditingClient(null); setDeletedPayments([]); }} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", flexShrink: 0, marginLeft: 8 }}>✕</button>
+            <button onClick={() => { setEditingClient(null); setDeletedPayments([]); }} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit", flexShrink: 0, marginLeft: 8 }}>X</button>
           </div>
           <div style={{ padding: "16px 20px", flex: 1 }}>
             <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Tax Type</p>
@@ -1033,9 +983,10 @@ const openBatchModal = async (quarterStr: string) => {
             <input placeholder="Last Name" value={editLastName} onChange={e => setEditLastName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
             <input placeholder="First Name" value={editFirstName} onChange={e => setEditFirstName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
             <input placeholder="Middle Name" value={editMiddleName} onChange={e => setEditMiddleName(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
-            <input placeholder="RDO Code (e.g. 015)" value={editRdo} onChange={e => setEditRdo(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 14, outline: "none" }} />
+            <input placeholder="RDO Code (e.g. 015)" value={editRdo} onChange={e => setEditRdo(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
+            <input placeholder="Address (e.g. Rizal, City of Santiago, Isabela)" value={editAddress} onChange={e => setEditAddress(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 14, outline: "none" }} />
             <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Prior Year Excess Credit</p>
-            <input placeholder="Amount (₱)" value={editCredit} onChange={e => setEditCredit(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
+            <input placeholder="Amount" value={editCredit} onChange={e => setEditCredit(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 6, outline: "none" }} />
             <input placeholder="From year (e.g. 2025)" value={editCreditYear} onChange={e => setEditCreditYear(e.target.value)} style={{ width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", marginBottom: 14, outline: "none" }} />
             <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 6 }}>Tax Payments Made ({year})</p>
             {(["Q1", "Q2", "Q3"] as const).map(q => {
@@ -1043,10 +994,10 @@ const openBatchModal = async (quarterStr: string) => {
               const isDeleted = deletedPayments.includes(qNum);
               return (
                 <div key={q} style={{ display: "flex", gap: 6, marginBottom: 6 }}>
-                  <input placeholder={`${q} payment (₱)`} value={editPayments[q]} onChange={e => setEditPayments(prev => ({ ...prev, [q]: e.target.value }))} disabled={isDeleted} style={{ flex: 1, padding: "8px 10px", background: isDeleted ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: isDeleted ? "rgba(255,255,255,0.2)" : "#fff", fontSize: 12, fontFamily: "inherit", outline: "none" }} />
+                  <input placeholder={`${q} payment`} value={editPayments[q]} onChange={e => setEditPayments(prev => ({ ...prev, [q]: e.target.value }))} disabled={isDeleted} style={{ flex: 1, padding: "8px 10px", background: isDeleted ? "rgba(255,255,255,0.02)" : "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: isDeleted ? "rgba(255,255,255,0.2)" : "#fff", fontSize: 12, fontFamily: "inherit", outline: "none" }} />
                   {isDeleted
                     ? <button onClick={() => setDeletedPayments(prev => prev.filter(n => n !== qNum))} style={{ padding: "8px 10px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 8, color: "#a5b4fc", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>Undo</button>
-                    : <button onClick={() => clearPayment(qNum)} style={{ padding: "8px 10px", background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 8, color: "#fca5a5", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>✕</button>
+                    : <button onClick={() => clearPayment(qNum)} style={{ padding: "8px 10px", background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 8, color: "#fca5a5", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0 }}>X</button>
                   }
                 </div>
               );
