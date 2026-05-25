@@ -295,7 +295,8 @@ export default function TaxPage() {
   }[]>([]);
   const [batchEmailSending, setBatchEmailSending] = useState(false);
   const [batchEmailStatus, setBatchEmailStatus] = useState("");
-  const [submissions, setSubmissions] = useState<Record<string, string>>({});
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+const [submissions, setSubmissions] = useState<Record<string, string>>({});
   // ──────────────────────────────────────────────────────────────────────────
 
   useEffect(() => { fetchClients(); }, []);
@@ -431,8 +432,17 @@ export default function TaxPage() {
         }),
       });
       if (resp.ok) {
+        await supabase.from("sawt_submissions").upsert({
+          client_id: client.id,
+          quarter: quarterNum,
+          year: parseInt(year),
+          submitted_at: new Date().toISOString(),
+          dat_filename: result.datFilename,
+        }, { onConflict: "client_id,quarter,year" });
+        setSubmissions(prev => ({ ...prev, [`Q${quarterNum}`]: new Date().toISOString() }));
         setSendStatus(`Sent: ${fullName}`);
         setTimeout(() => setSendStatus(""), 4000);
+      }
       } else {
         setSendStatus("Failed to send. Try again.");
         setTimeout(() => setSendStatus(""), 4000);
@@ -471,6 +481,13 @@ export default function TaxPage() {
             address: client.address || "",
           }),
         });
+          await supabase.from("sawt_submissions").upsert({
+            client_id: client.id,
+            quarter: quarterNum,
+            year: parseInt(year),
+            submitted_at: new Date().toISOString(),
+            dat_filename: datFilename,
+          }, { onConflict: "client_id,quarter,year" });
       } catch { /* continue even if one fails */ }
       sent++;
       await new Promise(r => setTimeout(r, 800));
@@ -857,11 +874,17 @@ const openBatchModal = async (quarterStr: string) => {
                             const label = q.isNoTaxDue ? "No Tax Due" : q.isOverpayment ? "Overpaid" : fmt(q.item63);
                             const labelColor = q.isNoTaxDue ? (isActive ? "rgba(255,255,255,0.5)" : "rgba(255,255,255,0.2)") : q.isOverpayment ? "#6ee7b7" : (isActive ? "#fcd34d" : "rgba(252,211,77,0.5)");
                             return (
-                              <button key={q.quarter} onClick={() => setActiveQuarter(q.quarter)} style={{ flex: 1, padding: "10px 8px", borderRadius: 12, cursor: "pointer", fontFamily: "inherit", background: isActive ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.04)", border: isActive ? "none" : "0.5px solid rgba(255,255,255,0.08)", transition: "all 0.15s" }}>
-                                <p style={{ fontSize: 13, fontWeight: 600, color: isActive ? "#fff" : "rgba(255,255,255,0.4)", marginBottom: 4 }}>{q.quarter}</p>
-                                <p style={{ fontSize: 11, color: isActive ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)" }}>{q.forms} 2307{q.forms !== 1 ? "s" : ""}</p>
-                                <p style={{ fontSize: 11, fontWeight: 600, color: labelColor, marginTop: 4 }}>{label}</p>
-                              </button>
+                              <button key={q.quarter} onClick={() => setActiveQuarter(q.quarter)} style={{ flex: 1, padding: "10px 8px", borderRadius: 12, cursor: "pointer", fontFamily: "inherit", background: isActive ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.04)", border: isActive ? "none" : "0.5px solid rgba(255,255,255,0.08)", transition: "all 0.15s", position: "relative" }}>
+  {submissions[q.quarter] && (
+    <span style={{ position: "absolute", top: 6, right: 6, width: 7, height: 7, borderRadius: "50%", background: "#6ee7b7", boxShadow: "0 0 6px #6ee7b7" }} />
+  )}
+  <p style={{ fontSize: 13, fontWeight: 600, color: isActive ? "#fff" : "rgba(255,255,255,0.4)", marginBottom: 4 }}>{q.quarter}</p>
+  <p style={{ fontSize: 11, color: isActive ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.25)" }}>{q.forms} 2307{q.forms !== 1 ? "s" : ""}</p>
+  <p style={{ fontSize: 11, fontWeight: 600, color: labelColor, marginTop: 4 }}>{label}</p>
+  {submissions[q.quarter] && (
+    <p style={{ fontSize: 10, color: isActive ? "rgba(255,255,255,0.6)" : "#6ee7b7", marginTop: 3 }}>✓ Sent</p>
+  )}
+</button>
                             );
                           })}
                         </div>
