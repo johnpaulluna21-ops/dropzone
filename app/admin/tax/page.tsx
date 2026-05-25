@@ -473,7 +473,8 @@ export default function TaxPage() {
   };
   // ──────────────────────────────────────────────────────────────────────────
 
-  const openBatchModal = async (quarterStr: string) => {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+const openBatchModal = async (quarterStr: string) => {
     const qNum = parseInt(quarterStr.replace("Q", ""));
     const { data: uploads } = await supabase.from("uploads").select("*").eq("status", "extracted");
     const allUploads = uploads || [];
