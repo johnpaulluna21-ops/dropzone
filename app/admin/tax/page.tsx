@@ -442,7 +442,6 @@ const [submissions, setSubmissions] = useState<Record<string, string>>({});
         setSubmissions(prev => ({ ...prev, [`Q${quarterNum}`]: new Date().toISOString() }));
         setSendStatus(`Sent: ${fullName}`);
         setTimeout(() => setSendStatus(""), 4000);
-      }
       } else {
         setSendStatus("Failed to send. Try again.");
         setTimeout(() => setSendStatus(""), 4000);
