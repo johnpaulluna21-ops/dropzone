@@ -484,7 +484,8 @@ export default function TaxPage() {
     }
     setBatchEmailSending(false);
     setBatchEmailStatus(`Done - ${sent} email${sent !== 1 ? "s" : ""} sent.`);
-    setTimeout(() => { setBatchEmailClients([]); setBatchEmailStatus(""); }, 4000);
+    if (selected) fetchSubmissions(selected.id);
+    setTimeout(() => { setBatchEmailClients([]); setBatchEmailStatus(""); setBatchEmailProgress(0); }, 4000);
   };
 
   const openBatchModal = async (quarterStr: string) => {
