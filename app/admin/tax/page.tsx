@@ -308,6 +308,16 @@ export default function TaxPage() {
   const [batchEmailProgress, setBatchEmailProgress] = useState(0);
   const [submissions, setSubmissions] = useState<Record<string, string>>({});
 
+  // ── Resubmit Warning Modal State ─────────────────────────────
+  const [resubmitModal, setResubmitModal] = useState<{
+    clientName: string;
+    quarterNum: number;
+    submittedAt: string;
+    onConfirm: () => void;
+  } | null>(null);
+  const [resubmitInput, setResubmitInput] = useState("");
+  // ────────────────────────────────────────────────────────────
+
   // ── Manual Income State ──────────────────────────────────────
   const [manualIncomes, setManualIncomes] = useState<ManualIncomeEntry[]>([]);
   const [showManualForm, setShowManualForm] = useState(false);
@@ -516,16 +526,34 @@ export default function TaxPage() {
   };
 
   const handleSendToBIR = async (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
+    const fullName = `${client.first_name || ""} ${client.middle_name ? client.middle_name + " " : ""}${client.last_name || ""}`.trim().toUpperCase();
+
+    // Check if already submitted
+    const existingSubmission = submissions[`Q${quarterNum}`];
+    if (existingSubmission) {
+      const submittedDate = new Date(existingSubmission).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
+      setResubmitInput("");
+      setResubmitModal({
+        clientName: fullName,
+        quarterNum,
+        submittedAt: submittedDate,
+        onConfirm: () => proceedSendToBIR(client, quarterNum, quarterForms, fullName),
+      });
+      return;
+    }
+    proceedSendToBIR(client, quarterNum, quarterForms, fullName);
+  };
+
+  const proceedSendToBIR = async (client: any, quarterNum: number, quarterForms: ExtractedForm[], fullName: string) => {
+    setResubmitModal(null);
+    setResubmitInput("");
     try {
       const result = generateSAWTContent(
         { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
         quarterNum, quarterForms, year
       );
-      const fullName = `${client.first_name || ""} ${client.middle_name ? client.middle_name + " " : ""}${client.last_name || ""}`.trim().toUpperCase();
       const nameParts = (client.name || "").split("/");
       const registeredName = (nameParts.length > 1 ? nameParts[1] : nameParts[0]).trim().toUpperCase();
-      const confirmed = window.confirm(`Send SAWT to BIR?\n\n${fullName}\nQ${quarterNum} ${year}`);
-      if (!confirmed) return;
       const resp = await fetch("/api/sawt/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -548,6 +576,23 @@ export default function TaxPage() {
 
   const handleBatchSendEmail = async () => {
     if (batchEmailClients.length === 0) return;
+
+    // Check for already submitted clients
+    const alreadySubmitted = batchEmailClients.filter(item =>
+      submissions[`Q${item.quarterNum}`]
+    );
+
+    if (alreadySubmitted.length > 0) {
+      const names = alreadySubmitted.map(item => {
+        const { client } = item;
+        return `${client.last_name || ""}, ${client.first_name || ""}`.trim();
+      }).join("\n");
+      const confirmed = window.confirm(
+        `⚠️ The following clients were already submitted to BIR:\n\n${names}\n\nType OK to send to ALL clients anyway, or Cancel to abort.`
+      );
+      if (!confirmed) return;
+    }
+
     setBatchEmailSending(true);
     setBatchEmailStatus("");
     setBatchEmailProgress(0);
@@ -732,6 +777,51 @@ export default function TaxPage() {
 
       {showValidator && <DATValidatorModal onClose={() => setShowValidator(false)} />}
       {batchModal && <BatchSAWTModal quarter={batchModal.quarter} yearStr={year} clientsWithForms={batchModal.clientsWithForms} onClose={() => setBatchModal(null)} onConfirm={runBatchGenerate} />}
+
+      {/* Resubmit Warning Modal */}
+      {resubmitModal && (
+        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
+          <div style={{ width: "100%", maxWidth: 460, background: "#1a1a1a", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 20, overflow: "hidden" }}>
+            <div style={{ padding: "18px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ width: 36, height: 36, background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                <i className="ti ti-alert-triangle" style={{ fontSize: 18, color: "#fca5a5" }} />
+              </div>
+              <div>
+                <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Already Submitted</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>This quarter was previously sent to BIR</p>
+              </div>
+            </div>
+            <div style={{ padding: "20px" }}>
+              <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.06)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 10, marginBottom: 16 }}>
+                <p style={{ fontSize: 12, color: "#fca5a5", marginBottom: 4 }}><strong>{resubmitModal.clientName}</strong></p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Q{resubmitModal.quarterNum} {year} — Submitted on {resubmitModal.submittedAt}</p>
+              </div>
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 16, lineHeight: 1.6 }}>
+                Sending again will create a duplicate submission to BIR. Only proceed if you have a valid reason to resubmit.
+              </p>
+              <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>
+                Type <span style={{ color: "#fca5a5", fontFamily: "monospace" }}>resubmit</span> to confirm:
+              </p>
+              <input
+                value={resubmitInput}
+                onChange={e => setResubmitInput(e.target.value)}
+                placeholder="Type resubmit to confirm..."
+                style={{ width: "100%", padding: "10px 12px", background: "rgba(255,255,255,0.06)", border: `0.5px solid ${resubmitInput.toLowerCase() === "resubmit" ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`, borderRadius: 8, color: "#fff", fontSize: 13, fontFamily: "inherit", outline: "none", marginBottom: 16 }}
+                autoFocus
+              />
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+                <button onClick={() => { setResubmitModal(null); setResubmitInput(""); }} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+                <button
+                  onClick={() => resubmitInput.toLowerCase() === "resubmit" && resubmitModal.onConfirm()}
+                  disabled={resubmitInput.toLowerCase() !== "resubmit"}
+                  style={{ padding: "8px 16px", background: resubmitInput.toLowerCase() === "resubmit" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${resubmitInput.toLowerCase() === "resubmit" ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: resubmitInput.toLowerCase() === "resubmit" ? "#fca5a5" : "rgba(255,255,255,0.2)", fontSize: 13, fontWeight: 600, cursor: resubmitInput.toLowerCase() === "resubmit" ? "pointer" : "default", fontFamily: "inherit" }}>
+                  Confirm Resubmit
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {batchGenerating && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
