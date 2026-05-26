@@ -102,6 +102,42 @@ IMPORTANT: The income amount appears in only ONE of the three month columns:
 - total_tax_withheld is the "Tax Withheld for the Quarter" value
 - All amounts should be numbers without commas`;
 
+const BIR_1701A_PROMPT = `You are extracting data from a BIR Form 1701A — Annual Income Tax Return for individuals earning purely from business or profession (non-VAT filers).
+
+Extract ALL fields below with maximum accuracy. Return ONLY valid JSON, no markdown, no preamble.
+
+CRITICAL RULES:
+- Extract numbers exactly as printed. No rounding, no approximation.
+- Negative values shown in parentheses must be returned as negative numbers. Example: (2,100.00) → -2100
+- If a field is blank or zero, return 0. Never return null for numeric fields.
+- Remove all commas from numbers. Return pure numeric values.
+- For taxpayer name extract exactly as printed: "LAST, FIRST MIDDLE"
+- For tax_rate: return "8%" if Item 19 shows 8% option selected, return "graduated" if graduated rates selected
+- For atc: return the ATC code that is marked/selected (II015, II017, II012, or II014)
+- Extract BOTH Part IV.A (graduated) and Part IV.B (8%) fields even if one section is all zeros
+
+{
+  "document_type": "1701A",
+  "tax_year": 0,
+  "tin": "",
+  "taxpayer_name": "",
+  "last_name": "",
+  "first_name": "",
+  "middle_name": "",
+  "rdo_code": "",
+  "tax_rate": "",
+  "atc": "",
+  "part_ii": { "item_20": 0, "item_21": 0, "item_22": 0 },
+  "part_iv_a": { "item_36": 0, "item_37": 0, "item_38": 0, "item_39": 0, "item_40": 0, "item_41": 0, "item_42": 0, "item_43": 0, "item_44": 0, "item_45": 0, "item_46": 0 },
+  "part_iv_b": { "item_47": 0, "item_48": 0, "item_49": 0, "item_50": 0, "item_51": 0, "item_52": 0, "item_53": 0, "item_54": 0, "item_55": 0, "item_56": 0 },
+  "part_iv_c": { "item_57": 0, "item_58": 0, "item_59": 0, "item_60": 0, "item_61": 0, "item_62": 0, "item_63": 0, "item_64": 0, "item_65": 0 }
+}`;
+
+function is1701A(filename: string): boolean {
+  const name = filename.toLowerCase();
+  return name.includes("1701a") || name.includes("1701-a") || name.includes("aitr") || name.includes("annual");
+}
+
 function is2307(filename: string): boolean {
   const name = filename.toLowerCase();
   return name.includes("2307") || name.includes("bir") || name.includes("certificate") || name.includes("creditable");
@@ -155,8 +191,9 @@ export async function POST(request: NextRequest) {
     const isWord = ["application/vnd.openxmlformats-officedocument.wordprocessingml.document", "application/msword"].includes(upload.file_type);
     const isText = upload.file_type === "text/plain";
 
-    const use2307Prompt = is2307(upload.file_name || "");
-    const prompt = use2307Prompt ? BIR_2307_PROMPT : GENERIC_PROMPT;
+    const useAITRPrompt = is1701A(upload.file_name || "");
+    const use2307Prompt = !useAITRPrompt && is2307(upload.file_name || "");
+    const prompt = useAITRPrompt ? BIR_1701A_PROMPT : use2307Prompt ? BIR_2307_PROMPT : GENERIC_PROMPT;
 
     let finalMimeType = upload.file_type;
     let extractedText = "";
