@@ -580,8 +580,19 @@ export default function TaxPage() {
   const handleBatchSendEmail = async () => {
     if (batchEmailClients.length === 0) return;
 
-    const alreadySubmitted = batchEmailClients.filter(item => submissions[`Q${item.quarterNum}`]);
-    const notYetSubmitted = batchEmailClients.filter(item => !submissions[`Q${item.quarterNum}`]);
+    // Fetch actual submission status from DB for each client in queue
+    const submissionChecks = await Promise.all(
+      batchEmailClients.map(async item => {
+        const map = await fetchSubmissions(item.client.id, parseInt(year));
+        return {
+          item,
+          alreadySubmitted: !!map[`Q${item.quarterNum}`],
+        };
+      })
+    );
+
+    const alreadySubmitted = submissionChecks.filter(s => s.alreadySubmitted).map(s => s.item);
+    const notYetSubmitted = submissionChecks.filter(s => !s.alreadySubmitted).map(s => s.item);
 
     if (alreadySubmitted.length > 0) {
       const duplicateNames = alreadySubmitted.map(item =>
