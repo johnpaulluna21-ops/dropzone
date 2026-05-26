@@ -587,9 +587,6 @@ export default function TaxPage() {
       const duplicateNames = alreadySubmitted.map(item =>
         `${item.client.last_name || ""}, ${item.client.first_name || ""}`.trim()
       ).join("\n");
-      const newNames = notYetSubmitted.map(item =>
-        `${item.client.last_name || ""}, ${item.client.first_name || ""}`.trim()
-      ).join("\n");
       setResubmitInput("");
       setResubmitModal({
         clientName: duplicateNames,
