@@ -32,6 +32,12 @@ import {
   computeQuarterlySummary,
   type ManualIncomeEntry,
 } from "@/modules/tax/computeQuarterlySummary";
+import {
+  getCurrentQuarter,
+  getQuarterDeadline,
+  formatDeadlineDate,
+  getUrgencyMessage,
+} from "@/modules/tax/deadlines";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -330,6 +336,34 @@ export default function TaxPage() {
   const [manualSourceType, setManualSourceType] = useState("manual_entry");
   const [manualNotes, setManualNotes] = useState("");
   const [manualSaving, setManualSaving] = useState(false);
+  // ────────────────────────────────────────────────────────────
+
+  // ── Deadline Banner (computed once, no state needed) ─────────
+  const today = new Date();
+  const { quarter: currentQ, year: currentYear } = getCurrentQuarter(today);
+  const deadlineInfo = getQuarterDeadline(currentYear, currentQ, today);
+  const deadlineDisplay = formatDeadlineDate(deadlineInfo.deadline);
+  const urgencyMessage = getUrgencyMessage(deadlineInfo);
+  const bannerBg = deadlineInfo.isOverdue
+    ? "rgba(239,68,68,0.08)"
+    : deadlineInfo.isDueSoon
+    ? "rgba(251,191,36,0.08)"
+    : "rgba(59,130,246,0.08)";
+  const bannerBorder = deadlineInfo.isOverdue
+    ? "rgba(239,68,68,0.25)"
+    : deadlineInfo.isDueSoon
+    ? "rgba(251,191,36,0.25)"
+    : "rgba(59,130,246,0.25)";
+  const bannerTextColor = deadlineInfo.isOverdue
+    ? "#fca5a5"
+    : deadlineInfo.isDueSoon
+    ? "#fcd34d"
+    : "#93c5fd";
+  const badgeBg = deadlineInfo.isOverdue
+    ? "rgba(239,68,68,0.15)"
+    : deadlineInfo.isDueSoon
+    ? "rgba(251,191,36,0.15)"
+    : "rgba(59,130,246,0.15)";
   // ────────────────────────────────────────────────────────────
 
   useEffect(() => { loadClients(); }, []);
@@ -818,14 +852,10 @@ export default function TaxPage() {
               </div>
             </div>
             <div style={{ padding: "20px" }}>
-
-              {/* Already submitted clients */}
               <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.06)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 10, marginBottom: 12 }}>
                 <p style={{ fontSize: 11, fontWeight: 600, color: "#fca5a5", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>⚠️ Already Submitted</p>
                 <p style={{ fontSize: 12, color: "#fca5a5", whiteSpace: "pre-line", lineHeight: 1.8 }}>{resubmitModal.clientName}</p>
               </div>
-
-              {/* New clients ready to send */}
               {resubmitModal.newClients && resubmitModal.newClients.length > 0 && (
                 <div style={{ padding: "12px 14px", background: "rgba(16,185,129,0.06)", border: "0.5px solid rgba(16,185,129,0.2)", borderRadius: 10, marginBottom: 16 }}>
                   <p style={{ fontSize: 11, fontWeight: 600, color: "#6ee7b7", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>✅ Ready for First Submission</p>
@@ -836,8 +866,6 @@ export default function TaxPage() {
                   </p>
                 </div>
               )}
-
-              {/* Resubmit input — only shown for Send All path */}
               <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 12, lineHeight: 1.6 }}>
                 {resubmitModal.onConfirmSkip
                   ? `To send only new clients, click "Skip Duplicates". To send all including duplicates, type resubmit below.`
@@ -850,11 +878,8 @@ export default function TaxPage() {
                 style={{ width: "100%", padding: "10px 12px", background: "rgba(255,255,255,0.06)", border: `0.5px solid ${resubmitInput.toLowerCase() === "resubmit" ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`, borderRadius: 8, color: "#fff", fontSize: 13, fontFamily: "inherit", outline: "none", marginBottom: 16 }}
                 autoFocus
               />
-
               <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                <button onClick={() => { setResubmitModal(null); setResubmitInput(""); }} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-                  Cancel
-                </button>
+                <button onClick={() => { setResubmitModal(null); setResubmitInput(""); }} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
                 {resubmitModal.onConfirmSkip && (
                   <button onClick={resubmitModal.onConfirmSkip} style={{ padding: "8px 16px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
                     Skip Duplicates & Send {resubmitModal.newClients?.length} New
@@ -911,6 +936,25 @@ export default function TaxPage() {
         <div style={{ flex: 1, minWidth: drawerOpen ? "900px" : "0", transition: "margin-right 0.25s ease", marginRight: drawerOpen ? "320px" : "0" }}>
           <main style={{ minHeight: "100vh", background: "#0f0f0f", backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%)", padding: "2rem 1.5rem", fontFamily: "'Inter', sans-serif" }}>
             <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+
+              {/* ── BIR Deadline Banner ────────────────────────────────── */}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", marginBottom: "1.25rem", background: bannerBg, border: `0.5px solid ${bannerBorder}`, borderRadius: 14 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontSize: 16 }}>📅</span>
+                  <div>
+                    <p style={{ fontSize: 13, fontWeight: 600, color: bannerTextColor }}>
+                      BIR 1701Q {deadlineInfo.label} — Filing Deadline
+                    </p>
+                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
+                      Due: <span style={{ color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>{deadlineDisplay}</span>
+                    </p>
+                  </div>
+                </div>
+                <div style={{ padding: "5px 14px", background: badgeBg, border: `0.5px solid ${bannerBorder}`, borderRadius: 20 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: bannerTextColor }}>{urgencyMessage}</span>
+                </div>
+              </div>
+              {/* ──────────────────────────────────────────────────────── */}
 
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: "2rem" }}>
                 <div style={{ width: 38, height: 38, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
