@@ -43,6 +43,8 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+import { fetchClientAITR } from "@/services/tax";
+// import { mapFrom1701A } from "@/modules/tax/mappers/from-1701a";
 
 const PAGE_SIZE = 10;
 
@@ -313,6 +315,8 @@ export default function TaxPage() {
   const [batchEmailStatus, setBatchEmailStatus] = useState("");
   const [batchEmailProgress, setBatchEmailProgress] = useState(0);
   const [submissions, setSubmissions] = useState<Record<string, string>>({});
+  const [priorYearAITR, setPriorYearAITR] = useState<any | null>(null);
+  const [showComparison, setShowComparison] = useState(false);
 
   // ── Resubmit Warning Modal State ─────────────────────────────
   const [resubmitModal, setResubmitModal] = useState<{
@@ -388,6 +392,8 @@ export default function TaxPage() {
     setActiveQuarter("Q1");
     setLoading(true);
     setShowManualForm(false);
+    setPriorYearAITR(null);
+    setShowComparison(false);
 
     try {
       // 1. Load submissions (UI state)
@@ -427,6 +433,16 @@ export default function TaxPage() {
       });
 
       setSummary({ client, ...result });
+
+      // Load prior year AITR
+      const priorYear = parseInt(year) - 1;
+      const aitrUpload = await fetchClientAITR(client.id, priorYear);
+      if (aitrUpload) {
+        const extracted = typeof aitrUpload.extracted_data === "string"
+          ? JSON.parse(aitrUpload.extracted_data)
+          : aitrUpload.extracted_data;
+        // setPriorYearAITR(mapFrom1701A(extracted, aitrUpload.id));
+      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -1264,6 +1280,60 @@ export default function TaxPage() {
                             ))}
                           </div>
                         </div>
+
+                        {/* Prior Year Comparison */}
+                        {priorYearAITR ? (
+                          <div style={{ border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, overflow: "hidden", marginBottom: 16 }}>
+                            <div onClick={() => setShowComparison(!showComparison)} style={{ padding: "12px 16px", background: "rgba(255,255,255,0.03)", display: "flex", alignItems: "center", justifyContent: "space-between", cursor: "pointer" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <i className="ti ti-chart-bar" style={{ fontSize: 14, color: "#a5b4fc" }} />
+                                <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Year-over-Year Comparison</p>
+                                <span style={{ fontSize: 10, padding: "2px 8px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 20, color: "#a5b4fc" }}>{parseInt(year) - 1} Filed vs {year} Running</span>
+                              </div>
+                              <i className={`ti ti-chevron-${showComparison ? "up" : "down"}`} style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }} />
+                            </div>
+                            {showComparison && (
+                              <div style={{ padding: "16px" }}>
+                                <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                                  <thead>
+                                    <tr>
+                                      {["Field", `${parseInt(year) - 1} (Filed)`, `${year} (Running)`, "Change"].map(h => (
+                                        <th key={h} style={{ textAlign: h === "Field" ? "left" : "right", padding: "8px 10px", fontSize: 11, color: "rgba(255,255,255,0.3)", fontWeight: 500, borderBottom: "0.5px solid rgba(255,255,255,0.06)" }}>{h}</th>
+                                      ))}
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {[
+                                      { label: "Gross Income", prior: priorYearAITR.gross_income, current: summary.quarters[summary.quarters.length-1]?.item51 || 0 },
+                                      { label: "Less: P250,000", prior: priorYearAITR.allowable_deduction, current: 250000 },
+                                      { label: "Net Taxable Income", prior: priorYearAITR.net_taxable_income, current: summary.quarters[summary.quarters.length-1]?.item53 || 0 },
+                                      { label: "Tax Due (8%)", prior: priorYearAITR.tax_due, current: summary.quarters[summary.quarters.length-1]?.item54 || 0 },
+                                      { label: "Total Credits", prior: priorYearAITR.total_credits, current: summary.quarters[summary.quarters.length-1]?.item62 || 0 },
+                                      { label: "Result", prior: priorYearAITR.tax_payable_overpayment, current: summary.quarters[summary.quarters.length-1]?.item63 || 0, isResult: true },
+                                    ].map((row: any) => {
+                                      const change = row.current - row.prior;
+                                      const changeColor = change === 0 ? "rgba(255,255,255,0.3)" : row.isResult ? (change < 0 ? "#6ee7b7" : "#fca5a5") : (change > 0 ? "#fcd34d" : "#6ee7b7");
+                                      return (
+                                        <tr key={row.label}>
+                                          <td style={{ padding: "8px 10px", fontSize: 12, color: "rgba(255,255,255,0.6)", borderBottom: "0.5px solid rgba(255,255,255,0.04)", fontWeight: row.isResult ? 600 : 400 }}>{row.label}</td>
+                                          <td style={{ padding: "8px 10px", fontSize: 12, color: "#fff", textAlign: "right", borderBottom: "0.5px solid rgba(255,255,255,0.04)", fontWeight: row.isResult ? 600 : 400 }}>{row.prior < 0 ? `(${fmt(row.prior)})` : fmt(row.prior)}</td>
+                                          <td style={{ padding: "8px 10px", fontSize: 12, color: "#a5b4fc", textAlign: "right", borderBottom: "0.5px solid rgba(255,255,255,0.04)", fontWeight: row.isResult ? 600 : 400 }}>{row.current < 0 ? `(${fmt(row.current)})` : fmt(row.current)}</td>
+                                          <td style={{ padding: "8px 10px", fontSize: 12, color: changeColor, textAlign: "right", borderBottom: "0.5px solid rgba(255,255,255,0.04)", fontWeight: 600 }}>{change === 0 ? "—" : `${change > 0 ? "+" : ""}${fmt(change)}`}</td>
+                                        </tr>
+                                      );
+                                    })}
+                                  </tbody>
+                                </table>
+                                {priorYearAITR.confidence !== "high" && <p style={{ fontSize: 10, color: "#fcd34d", marginTop: 10 }}>⚠️ Extraction confidence: {priorYearAITR.confidence} — verify against original document.</p>}
+                              </div>
+                            )}
+                          </div>
+                        ) : (
+                          <div style={{ padding: "12px 16px", background: "rgba(255,255,255,0.02)", border: "0.5px solid rgba(255,255,255,0.06)", borderRadius: 12, marginBottom: 16, display: "flex", alignItems: "center", gap: 10 }}>
+                            <i className="ti ti-chart-bar" style={{ fontSize: 14, color: "rgba(255,255,255,0.2)" }} />
+                            <p style={{ fontSize: 12, color: "rgba(255,255,255,0.25)" }}>No {parseInt(year) - 1} 1701A on file. Upload the prior year AITR to enable year-over-year comparison.</p>
+                          </div>
+                        )}
 
                         <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 16 }}>
                           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{selectedIndex + 1} of {clients.length}</span>
