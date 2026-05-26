@@ -113,6 +113,7 @@ CRITICAL RULES:
 - Remove all commas from numbers. Return pure numeric values.
 - For taxpayer name extract exactly as printed: "LAST, FIRST MIDDLE"
 - For tax_rate: return "8%" if Item 19 shows 8% option selected, return "graduated" if graduated rates selected
+- For tax_year: return ONLY the 4-digit year as a number. Example: if the form shows "12/2025" return 2025, not 202512
 - For atc: return the ATC code that is marked/selected (II015, II017, II012, or II014)
 - Extract BOTH Part IV.A (graduated) and Part IV.B (8%) fields even if one section is all zeros
 
