@@ -438,9 +438,6 @@ export default function TaxPage() {
       const priorYear = parseInt(year) - 1;
       const aitrUpload = await fetchClientAITR(client.id, priorYear);
       if (aitrUpload) {
-        const extracted = typeof aitrUpload.extracted_data === "string"
-          ? JSON.parse(aitrUpload.extracted_data)
-          : aitrUpload.extracted_data;
         // setPriorYearAITR(mapFrom1701A(extracted, aitrUpload.id));
       }
     } catch (err) {
