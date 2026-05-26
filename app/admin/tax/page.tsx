@@ -313,6 +313,9 @@ export default function TaxPage() {
     clientName: string;
     quarterNum: number;
     submittedAt: string;
+    newClients?: any[];
+    duplicateClients?: any[];
+    onConfirmSkip?: () => void;
     onConfirm: () => void;
   } | null>(null);
   const [resubmitInput, setResubmitInput] = useState("");
@@ -577,48 +580,54 @@ export default function TaxPage() {
   const handleBatchSendEmail = async () => {
     if (batchEmailClients.length === 0) return;
 
-    // Check for already submitted clients
-    const alreadySubmitted = batchEmailClients.filter(item =>
-      submissions[`Q${item.quarterNum}`]
-    );
+    const alreadySubmitted = batchEmailClients.filter(item => submissions[`Q${item.quarterNum}`]);
+    const notYetSubmitted = batchEmailClients.filter(item => !submissions[`Q${item.quarterNum}`]);
 
     if (alreadySubmitted.length > 0) {
-      const names = alreadySubmitted.map(item => {
-        const { client } = item;
-        return `${client.last_name || ""}, ${client.first_name || ""}`.trim();
-      }).join("\n");
+      const duplicateNames = alreadySubmitted.map(item =>
+        `${item.client.last_name || ""}, ${item.client.first_name || ""}`.trim()
+      ).join("\n");
+      const newNames = notYetSubmitted.map(item =>
+        `${item.client.last_name || ""}, ${item.client.first_name || ""}`.trim()
+      ).join("\n");
       setResubmitInput("");
       setResubmitModal({
-        clientName: `${alreadySubmitted.length} client${alreadySubmitted.length !== 1 ? "s" : ""} already submitted:\n${names}`,
+        clientName: duplicateNames,
         quarterNum: alreadySubmitted[0].quarterNum,
         submittedAt: "previously",
-        onConfirm: () => proceedBatchSend(),
+        newClients: notYetSubmitted,
+        duplicateClients: alreadySubmitted,
+        onConfirmSkip: notYetSubmitted.length > 0
+          ? () => proceedBatchSend(notYetSubmitted)
+          : undefined,
+        onConfirm: () => proceedBatchSend(batchEmailClients),
       });
       return;
     }
-    proceedBatchSend();
+    proceedBatchSend(batchEmailClients);
   };
 
-  const proceedBatchSend = async () => {
+  const proceedBatchSend = async (clientsToSend: typeof batchEmailClients) => {
     setResubmitModal(null);
     setResubmitInput("");
+    if (clientsToSend.length === 0) return;
     setBatchEmailSending(true);
     setBatchEmailStatus("");
     setBatchEmailProgress(0);
     let sent = 0;
-    for (const item of batchEmailClients) {
+    for (const item of clientsToSend) {
       const { client, datContent, datFilename, quarterNum } = item;
       const fullName = `${client.first_name || ""} ${client.middle_name ? client.middle_name + " " : ""}${client.last_name || ""}`.trim().toUpperCase();
       const nameParts = (client.name || "").split("/");
       const registeredName = (nameParts.length > 1 ? nameParts[1] : nameParts[0]).trim().toUpperCase();
       const { display: displayTin } = normalizeTin(client.tin || "");
-      setBatchEmailStatus(`Sending ${sent + 1} / ${batchEmailClients.length}: ${fullName}...`);
+      setBatchEmailStatus(`Sending ${sent + 1} / ${clientsToSend.length}: ${fullName}...`);
       try {
         await fetch("/api/sawt/email", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ datContent, datFilename, clientName: fullName, registeredName, tin: displayTin, quarterNum, year, address: client.address || "" }) });
         await recordSawtSubmission(client.id, quarterNum, parseInt(year), datFilename);
       } catch { /* continue even if one fails */ }
       sent++;
-      setBatchEmailProgress(Math.round((sent / batchEmailClients.length) * 100));
+      setBatchEmailProgress(Math.round((sent / clientsToSend.length) * 100));
       await new Promise(r => setTimeout(r, 800));
     }
     setBatchEmailSending(false);
@@ -790,41 +799,64 @@ export default function TaxPage() {
       {/* Resubmit Warning Modal */}
       {resubmitModal && (
         <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
-          <div style={{ width: "100%", maxWidth: 460, background: "#1a1a1a", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 20, overflow: "hidden" }}>
+          <div style={{ width: "100%", maxWidth: 500, background: "#1a1a1a", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 20, overflow: "hidden" }}>
             <div style={{ padding: "18px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 12 }}>
               <div style={{ width: 36, height: 36, background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                 <i className="ti ti-alert-triangle" style={{ fontSize: 18, color: "#fca5a5" }} />
               </div>
               <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Already Submitted</p>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>This quarter was previously sent to BIR</p>
+                <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Duplicate Submission Detected</p>
+                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Some clients were already submitted to BIR</p>
               </div>
             </div>
             <div style={{ padding: "20px" }}>
-              <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.06)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 10, marginBottom: 16 }}>
-                <p style={{ fontSize: 12, color: "#fca5a5", marginBottom: 4, whiteSpace: "pre-line" }}><strong>{resubmitModal.clientName}</strong></p>
-                {resubmitModal.submittedAt !== "previously" && <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Q{resubmitModal.quarterNum} {year} — Submitted on {resubmitModal.submittedAt}</p>}
+
+              {/* Already submitted clients */}
+              <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.06)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 10, marginBottom: 12 }}>
+                <p style={{ fontSize: 11, fontWeight: 600, color: "#fca5a5", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>⚠️ Already Submitted</p>
+                <p style={{ fontSize: 12, color: "#fca5a5", whiteSpace: "pre-line", lineHeight: 1.8 }}>{resubmitModal.clientName}</p>
               </div>
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 16, lineHeight: 1.6 }}>
-                Sending again will create a duplicate submission to BIR. Only proceed if you have a valid reason to resubmit.
-              </p>
-              <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)", marginBottom: 8 }}>
-                Type <span style={{ color: "#fca5a5", fontFamily: "monospace" }}>resubmit</span> to confirm:
+
+              {/* New clients ready to send */}
+              {resubmitModal.newClients && resubmitModal.newClients.length > 0 && (
+                <div style={{ padding: "12px 14px", background: "rgba(16,185,129,0.06)", border: "0.5px solid rgba(16,185,129,0.2)", borderRadius: 10, marginBottom: 16 }}>
+                  <p style={{ fontSize: 11, fontWeight: 600, color: "#6ee7b7", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>✅ Ready for First Submission</p>
+                  <p style={{ fontSize: 12, color: "#6ee7b7", whiteSpace: "pre-line", lineHeight: 1.8 }}>
+                    {resubmitModal.newClients.map((item: any) =>
+                      `${item.client.last_name || ""}, ${item.client.first_name || ""}`.trim()
+                    ).join("\n")}
+                  </p>
+                </div>
+              )}
+
+              {/* Resubmit input — only shown for Send All path */}
+              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 12, lineHeight: 1.6 }}>
+                {resubmitModal.onConfirmSkip
+                  ? `To send only new clients, click "Skip Duplicates". To send all including duplicates, type resubmit below.`
+                  : `Type resubmit below to confirm sending again.`}
               </p>
               <input
                 value={resubmitInput}
                 onChange={e => setResubmitInput(e.target.value)}
-                placeholder="Type resubmit to confirm..."
+                placeholder="Type resubmit to send all..."
                 style={{ width: "100%", padding: "10px 12px", background: "rgba(255,255,255,0.06)", border: `0.5px solid ${resubmitInput.toLowerCase() === "resubmit" ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`, borderRadius: 8, color: "#fff", fontSize: 13, fontFamily: "inherit", outline: "none", marginBottom: 16 }}
                 autoFocus
               />
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                <button onClick={() => { setResubmitModal(null); setResubmitInput(""); }} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
+
+              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
+                <button onClick={() => { setResubmitModal(null); setResubmitInput(""); }} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
+                  Cancel
+                </button>
+                {resubmitModal.onConfirmSkip && (
+                  <button onClick={resubmitModal.onConfirmSkip} style={{ padding: "8px 16px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
+                    Skip Duplicates & Send {resubmitModal.newClients?.length} New
+                  </button>
+                )}
                 <button
                   onClick={() => resubmitInput.toLowerCase() === "resubmit" && resubmitModal.onConfirm()}
                   disabled={resubmitInput.toLowerCase() !== "resubmit"}
                   style={{ padding: "8px 16px", background: resubmitInput.toLowerCase() === "resubmit" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${resubmitInput.toLowerCase() === "resubmit" ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: resubmitInput.toLowerCase() === "resubmit" ? "#fca5a5" : "rgba(255,255,255,0.2)", fontSize: 13, fontWeight: 600, cursor: resubmitInput.toLowerCase() === "resubmit" ? "pointer" : "default", fontFamily: "inherit" }}>
-                  Confirm Resubmit
+                  Send All
                 </button>
               </div>
             </div>
