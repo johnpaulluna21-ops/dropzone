@@ -587,12 +587,21 @@ export default function TaxPage() {
         const { client } = item;
         return `${client.last_name || ""}, ${client.first_name || ""}`.trim();
       }).join("\n");
-      const confirmed = window.confirm(
-        `⚠️ The following clients were already submitted to BIR:\n\n${names}\n\nType OK to send to ALL clients anyway, or Cancel to abort.`
-      );
-      if (!confirmed) return;
+      setResubmitInput("");
+      setResubmitModal({
+        clientName: `${alreadySubmitted.length} client${alreadySubmitted.length !== 1 ? "s" : ""} already submitted:\n${names}`,
+        quarterNum: alreadySubmitted[0].quarterNum,
+        submittedAt: "previously",
+        onConfirm: () => proceedBatchSend(),
+      });
+      return;
     }
+    proceedBatchSend();
+  };
 
+  const proceedBatchSend = async () => {
+    setResubmitModal(null);
+    setResubmitInput("");
     setBatchEmailSending(true);
     setBatchEmailStatus("");
     setBatchEmailProgress(0);
@@ -793,8 +802,8 @@ export default function TaxPage() {
             </div>
             <div style={{ padding: "20px" }}>
               <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.06)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 10, marginBottom: 16 }}>
-                <p style={{ fontSize: 12, color: "#fca5a5", marginBottom: 4 }}><strong>{resubmitModal.clientName}</strong></p>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Q{resubmitModal.quarterNum} {year} — Submitted on {resubmitModal.submittedAt}</p>
+                <p style={{ fontSize: 12, color: "#fca5a5", marginBottom: 4, whiteSpace: "pre-line" }}><strong>{resubmitModal.clientName}</strong></p>
+                {resubmitModal.submittedAt !== "previously" && <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Q{resubmitModal.quarterNum} {year} — Submitted on {resubmitModal.submittedAt}</p>}
               </div>
               <p style={{ fontSize: 12, color: "rgba(255,255,255,0.6)", marginBottom: 16, lineHeight: 1.6 }}>
                 Sending again will create a duplicate submission to BIR. Only proceed if you have a valid reason to resubmit.
