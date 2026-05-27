@@ -69,15 +69,23 @@ CRITICAL TIN EXTRACTION RULES:
 - NEVER truncate the TIN - extract ALL digits including trailing zeros
 - Example: if you see "760-570-253-0000" extract exactly "760-570-253-0000"
 - Example: if you see "629-449-549-0000" extract exactly "629-449-549-0000"
+CRITICAL NAME EXTRACTION RULES FOR FILIPINO NAMES:
+- Filipino names on 2307 appear as: LAST NAME, FIRST NAME MIDDLE NAME
+- last name = everything before the comma
+- first name = everything after the comma EXCEPT the last word (may be compound e.g. "PHEBIE CATE", "MARY GRACE")
+- middle name = the LAST word after the comma only
+- Example: "BARTIDO, PHEBIE CATE AQUINO" → last=BARTIDO, first=PHEBIE CATE, middle=AQUINO
+- Example: "DELA CRUZ, JUAN SANTOS" → last=DELA CRUZ, first=JUAN, middle=SANTOS
+- Example: "REYES, MARIA GRACE GARCIA" → last=REYES, first=MARIA GRACE, middle=GARCIA
 
 {
   "document_type": "BIR Form 2307",
   "period_from": "(MM/DD/YYYY)",
   "period_to": "(MM/DD/YYYY)",
   "payee_name": "",
-  "payee_last_name": "(last name / surname only)",
-  "payee_first_name": "(first name only)",
-  "payee_middle_name": "(middle name only)",
+  "payee_last_name": "(surname/family name only — everything before the comma)",
+  "payee_first_name": "(first name — may be compound e.g. PHEBIE CATE, MARY GRACE — all words after comma EXCEPT the last word)",
+  "payee_middle_name": "(middle name — ONLY the last word after the comma)",
   "payee_tin": "(extract full TIN including all trailing zeros)",
   "payee_address": "",
   "payor_name": "",
