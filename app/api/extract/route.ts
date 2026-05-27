@@ -70,14 +70,7 @@ CRITICAL TIN EXTRACTION RULES:
 - NEVER truncate the TIN - extract ALL digits including trailing zeros
 - Example: if you see "760-570-253-0000" extract exactly "760-570-253-0000"
 - Example: if you see "629-449-549-0000" extract exactly "629-449-549-0000"
-CRITICAL NAME EXTRACTION RULES FOR FILIPINO NAMES:
-- Filipino names on 2307 appear as: LAST NAME, FIRST NAME MIDDLE NAME
-- last name = everything before the comma
-- first name = everything after the comma EXCEPT the last word (may be compound e.g. "PHEBIE CATE", "MARY GRACE")
-- middle name = the LAST word after the comma only
-- Example: "BARTIDO, PHEBIE CATE AQUINO" → last=BARTIDO, first=PHEBIE CATE, middle=AQUINO
-- Example: "DELA CRUZ, JUAN SANTOS" → last=DELA CRUZ, first=JUAN, middle=SANTOS
-- Example: "REYES, MARIA GRACE GARCIA" → last=REYES, first=MARIA GRACE, middle=GARCIA
+
 
 {
   "document_type": "BIR Form 2307",
@@ -315,6 +308,7 @@ export async function POST(request: NextRequest) {
     // Auto-create client from 2307
     if (use2307Prompt && extractedData?.payee_tin && extractedData?.payee_name) {
       const cleanTin = extractedData.payee_tin.replace(/\s/g, "");
+      const parsedName = parsePhilippineName(extractedData.payee_name || "");
       const { data: existing } = await supabase
         .from("clients")
         .select("id")
@@ -324,9 +318,9 @@ export async function POST(request: NextRequest) {
         await supabase.from("clients").insert({
           name: extractedData.payee_name,
           tin: cleanTin,
-          last_name: extractedData.payee_last_name || null,
-          first_name: extractedData.payee_first_name || null,
-          middle_name: extractedData.payee_middle_name || null,
+          last_name: parsedName.last_name,
+          first_name: parsedName.first_name,
+          middle_name: parsedName.middle_name,
           address: extractedData.payee_address || null,
         });
       }
