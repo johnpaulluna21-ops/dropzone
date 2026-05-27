@@ -1,7 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { useEffect, useState, useCallback } from "react";
-import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import {
   generateSAWTContent,
