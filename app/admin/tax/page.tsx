@@ -1,17 +1,15 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import Link from "next/link";
 import {
-  validateDAT,
   generateSAWTContent,
   parseExtractedData,
   writeFileToDir,
   fallbackDownload,
   fmtPeso,
   normalizeTin,
-  type DATValidationResult,
   type ExtractedForm,
 } from "@/lib/sawt";
 import * as XLSX from "xlsx";
@@ -48,10 +46,6 @@ import { buildBatchSAWTQueue } from "@/services/tax/buildBatchSAWTQueue";
 import { type ClientRecord } from "@/core/types/client";
 import { type BatchEmailItem } from "@/core/types/tax";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 import { fetchClientAITR } from "@/services/tax";
 // import { mapFrom1701A } from "@/modules/tax/mappers/from-1701a";
 
