@@ -8,6 +8,7 @@ import sharp from "sharp";
 import * as XLSX from "xlsx";
 import mammoth from "mammoth";
 import { mapFrom2307 } from "@/modules/tax/mappers/from-2307";
+import { parsePhilippineName } from "@/modules/tax/parsePhilippineName";
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -83,9 +84,9 @@ CRITICAL NAME EXTRACTION RULES FOR FILIPINO NAMES:
   "period_from": "(MM/DD/YYYY)",
   "period_to": "(MM/DD/YYYY)",
   "payee_name": "",
-  "payee_last_name": "(surname/family name only — everything before the comma)",
-  "payee_first_name": "(first name — may be compound e.g. PHEBIE CATE, MARY GRACE — all words after comma EXCEPT the last word)",
-  "payee_middle_name": "(middle name — ONLY the last word after the comma)",
+  "payee_last_name": "",
+  "payee_first_name": "",
+  "payee_middle_name": "",
   "payee_tin": "(extract full TIN including all trailing zeros)",
   "payee_address": "",
   "payor_name": "",
