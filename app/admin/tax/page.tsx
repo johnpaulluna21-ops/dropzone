@@ -209,10 +209,10 @@ export default function TaxPage() {
         totalForms,
       });
 
-      setSummary({ client, ...result });
-      if (editingClient) {
+      setSummary({ client, ...result });if (editingClient) {
   openEdit(client);
 }
+      
 
       // Load prior year AITR
       const priorYear = parseInt(year) - 1;
