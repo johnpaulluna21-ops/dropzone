@@ -45,6 +45,8 @@ import { createClient as createClientService } from "@/services/client/createCli
 import { updateClient as updateClientService } from "@/services/client/updateClient";
 import { fetchClientEditData } from "@/services/client/fetchClientEditData";
 import { buildBatchSAWTQueue } from "@/services/tax/buildBatchSAWTQueue";
+import { type ClientRecord } from "@/core/types/client";
+import { type BatchEmailItem } from "@/core/types/tax";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -90,10 +92,10 @@ export default function TaxPage() {
   const [activeQuarter, setActiveQuarter] = useState("Q1");
   const [activeFolderTab, setActiveFolderTab] = useState<"8%" | "graduated">("8%");
   const [showValidator, setShowValidator] = useState(false);
-  const [batchModal, setBatchModal] = useState<{ quarter: string; clientsWithForms: { client: any; forms: ExtractedForm[] }[] } | null>(null);
+  const [batchModal, setBatchModal] = useState<{ quarter: string; clientsWithForms: { client: ClientRecord; forms: ExtractedForm[] }[] } | null>(null);
   const [batchGenerating, setBatchGenerating] = useState(false);
   const [batchStatus, setBatchStatus] = useState("");
-  const [batchEmailClients, setBatchEmailClients] = useState<{ client: any; datContent: string; datFilename: string; quarterNum: number; }[]>([]);
+  const [batchEmailClients, setBatchEmailClients] = useState<BatchEmailItem[]>([]);
   const [batchEmailSending, setBatchEmailSending] = useState(false);
   const [batchEmailStatus, setBatchEmailStatus] = useState("");
   const [batchEmailProgress, setBatchEmailProgress] = useState(0);
