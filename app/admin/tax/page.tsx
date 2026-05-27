@@ -210,6 +210,9 @@ export default function TaxPage() {
       });
 
       setSummary({ client, ...result });
+      if (editingClient) {
+  openEdit(client);
+}
 
       // Load prior year AITR
       const priorYear = parseInt(year) - 1;
