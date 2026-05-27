@@ -225,7 +225,7 @@ export default function TaxPage() {
     } finally {
       setLoading(false);
     }
-  }, [year]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [year, editingClient]);
 
   // ── Manual income: save via service ─────────────────────────
   const handleSaveManualIncome = async () => {
@@ -263,20 +263,21 @@ export default function TaxPage() {
     computeSummary(selected);
   };
 
-  const openEdit = async (client: any) => {
-    setEditingClient(client);
-    setEditTaxType(client.tax_type || "8%");
-    setEditLastName(client.last_name || "");
-    setEditFirstName(client.first_name || "");
-    setEditMiddleName(client.middle_name || "");
-    setEditRdo(client.rdo_code || "");
-    setEditAddress(client.address || "");
-    setEditCreditYear((new Date().getFullYear() - 1).toString());
-    setDeletedPayments([]);
-    const data = await fetchClientEditData(client.id, parseInt(year));
-    setEditCredit(data.priorYearCredit);
-    setEditPayments(data.payments);
-  };
+  // AFTER
+const openEdit = useCallback(async (client: any) => {
+  setEditingClient(client);
+  setEditTaxType(client.tax_type || "8%");
+  setEditLastName(client.last_name || "");
+  setEditFirstName(client.first_name || "");
+  setEditMiddleName(client.middle_name || "");
+  setEditRdo(client.rdo_code || "");
+  setEditAddress(client.address || "");
+  setEditCreditYear((new Date().getFullYear() - 1).toString());
+  setDeletedPayments([]);
+  const data = await fetchClientEditData(client.id, parseInt(year));
+  setEditCredit(data.priorYearCredit);
+  setEditPayments(data.payments);
+}, [year]); // setters are stable, only year needs to be tracked
 
   const clearPayment = useCallback((qNum: number) => {
     const qKey = `Q${qNum}` as "Q1" | "Q2" | "Q3";
