@@ -38,6 +38,13 @@ import {
   formatDeadlineDate,
   getUrgencyMessage,
 } from "@/modules/tax/deadlines";
+import { DATValidatorModal } from "@/components/tax/DATValidatorModal";
+import { BatchSAWTModal } from "@/components/tax/BatchSAWTModal";
+import { ResubmitModal } from "@/components/tax/ResubmitModal";
+import { createClient as createClientService } from "@/services/client/createClient";
+import { updateClient as updateClientService } from "@/services/client/updateClient";
+import { fetchClientEditData } from "@/services/client/fetchClientEditData";
+import { buildBatchSAWTQueue } from "@/services/tax/buildBatchSAWTQueue";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -47,230 +54,6 @@ import { fetchClientAITR } from "@/services/tax";
 // import { mapFrom1701A } from "@/modules/tax/mappers/from-1701a";
 
 const PAGE_SIZE = 10;
-
-function DATValidatorModal({ onClose }: { onClose: () => void }) {
-  const [results, setResults] = useState<DATValidationResult[]>([]);
-  const [expanded, setExpanded] = useState<Record<number, boolean>>({});
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    const prevent = (e: DragEvent) => e.preventDefault();
-    window.addEventListener("dragover", prevent);
-    window.addEventListener("drop", prevent);
-    return () => {
-      window.removeEventListener("dragover", prevent);
-      window.removeEventListener("drop", prevent);
-    };
-  }, []);
-
-  const processFiles = (files: File[]) => {
-    const datFiles = files.filter(f => /\.(dat|txt)$/i.test(f.name));
-    if (!datFiles.length) return;
-    let loaded = 0;
-    const newResults: { filename: string; content: string }[] = [];
-    datFiles.forEach(file => {
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        newResults.push({ filename: file.name, content: ev.target?.result as string });
-        loaded++;
-        if (loaded === datFiles.length) {
-          newResults.sort((a, b) => a.filename.localeCompare(b.filename));
-          setResults(prev => [...prev, ...newResults.map(r => validateDAT(r.filename, r.content))]);
-        }
-      };
-      reader.readAsText(file);
-    });
-  };
-
-  const downloadTxt = (r: DATValidationResult) => {
-    fallbackDownload(r.filename.replace(/\.(dat|txt)$/i, "") + ".TXT", r.txtReport, "text/plain");
-  };
-
-  const passed = results.filter(r => r.passed).length;
-  const total = results.length;
-  const btnStyle: React.CSSProperties = { padding: "3px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "#fff", fontSize: 11, fontFamily: "inherit", cursor: "pointer", outline: "none" };
-
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 200, background: "rgba(0,0,0,0.7)", display: "flex", alignItems: "flex-start", justifyContent: "center", padding: "2rem 1rem", overflowY: "auto" }}>
-      <div style={{ width: "100%", maxWidth: 760, background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden" }}>
-        <div style={{ padding: "18px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 34, height: 34, background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <i className="ti ti-shield-check" style={{ fontSize: 16, color: "#6ee7b7" }} />
-            </div>
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>DAT File Validator</p>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>BIR SAWT 1701Q — single or batch</p>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>X</button>
-        </div>
-        <div style={{ padding: "20px" }}>
-          <div onDrop={e => { e.preventDefault(); processFiles(Array.from(e.dataTransfer.files)); }} onDragOver={e => e.preventDefault()} onClick={() => fileInputRef.current?.click()} style={{ border: "1.5px dashed rgba(255,255,255,0.12)", borderRadius: 14, padding: "1.5rem", textAlign: "center", cursor: "pointer", background: "rgba(255,255,255,0.02)", marginBottom: 16 }}>
-            <i className="ti ti-files" style={{ fontSize: 28, color: "rgba(255,255,255,0.2)" }} />
-            <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginTop: 8 }}>Drop .DAT files here or click to browse</p>
-            <p style={{ fontSize: 11, color: "rgba(255,255,255,0.2)", marginTop: 4 }}>Single or multiple files accepted</p>
-          </div>
-          <input ref={fileInputRef} type="file" accept=".dat,.DAT,.txt,.TXT" multiple style={{ display: "none" }} onChange={e => { processFiles(Array.from(e.target.files || [])); if (fileInputRef.current) fileInputRef.current.value = ""; }} />
-          {total > 0 && (
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", borderRadius: 10, marginBottom: 14, background: passed === total ? "rgba(16,185,129,0.08)" : "rgba(239,68,68,0.08)", border: `0.5px solid ${passed === total ? "rgba(16,185,129,0.2)" : "rgba(239,68,68,0.2)"}` }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <i className={`ti ti-${passed === total ? "circle-check" : "alert-circle"}`} style={{ fontSize: 16, color: passed === total ? "#6ee7b7" : "#fca5a5" }} />
-                <p style={{ fontSize: 13, fontWeight: 500, color: passed === total ? "#6ee7b7" : "#fca5a5" }}>{passed} of {total} file{total !== 1 ? "s" : ""} passed validation</p>
-              </div>
-              <button onClick={() => setResults([])} style={{ ...btnStyle, color: "rgba(255,255,255,0.4)", fontSize: 12 }}>
-                <i className="ti ti-trash" style={{ fontSize: 12 }} /> Clear all
-              </button>
-            </div>
-          )}
-          {results.map((r, i) => (
-            <div key={i} style={{ background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.07)", borderRadius: 12, marginBottom: 10, overflow: "hidden" }}>
-              <div onClick={() => setExpanded(prev => ({ ...prev, [i]: !prev[i] }))} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 14px", cursor: "pointer" }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: r.passed ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.1)", flexShrink: 0 }}>
-                  <i className={`ti ti-${r.passed ? "check" : "x"}`} style={{ fontSize: 13, color: r.passed ? "#6ee7b7" : "#fca5a5" }} />
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 12, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{r.filename}</p>
-                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{r.hInfo ? `${r.hInfo.tin} · ${r.hInfo.name || "—"} · ${r.hInfo.period} · ${r.hInfo.dCount} 2307s` : "Could not parse header"}</p>
-                </div>
-                <span style={{ fontSize: 11, padding: "3px 10px", borderRadius: 20, fontWeight: 500, flexShrink: 0, background: !r.passed ? "rgba(239,68,68,0.12)" : r.warnCount > 0 ? "rgba(251,191,36,0.12)" : "rgba(16,185,129,0.12)", color: !r.passed ? "#fca5a5" : r.warnCount > 0 ? "#fcd34d" : "#6ee7b7" }}>
-                  {!r.passed ? `${r.errorCount} error${r.errorCount !== 1 ? "s" : ""}` : r.warnCount > 0 ? `Passed · ${r.warnCount} warning${r.warnCount !== 1 ? "s" : ""}` : "Passed"}
-                </span>
-                <i className={`ti ti-chevron-${expanded[i] ? "up" : "down"}`} style={{ fontSize: 13, color: "rgba(255,255,255,0.3)", flexShrink: 0 }} />
-              </div>
-              {expanded[i] && (
-                <div style={{ borderTop: "0.5px solid rgba(255,255,255,0.06)", padding: "14px" }}>
-                  {r.hInfo && (
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8, marginBottom: 12 }}>
-                      {[["TIN", r.hInfo.tin], ["Name", r.hInfo.name || "—"], ["Period", r.hInfo.period], ["RDO", r.hInfo.rdo || "—"], ["2307s", r.hInfo.dCount]].map(([label, val]) => (
-                        <div key={String(label)} style={{ background: "rgba(255,255,255,0.04)", borderRadius: 8, padding: "7px 10px" }}>
-                          <p style={{ fontSize: 10, color: "rgba(255,255,255,0.3)", marginBottom: 3 }}>{label}</p>
-                          <p style={{ fontSize: 11, fontWeight: 500, color: "#fff", wordBreak: "break-all" }}>{val}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {r.structErrors.length > 0 && (
-                    <div style={{ padding: "8px 12px", background: "rgba(239,68,68,0.08)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 8, marginBottom: 12 }}>
-                      <p style={{ fontSize: 11, fontWeight: 600, color: "#fca5a5", marginBottom: 4 }}><i className="ti ti-alert-triangle" style={{ fontSize: 12 }} /> Structure errors</p>
-                      {r.structErrors.map((e, j) => <p key={j} style={{ fontSize: 11, color: "#fca5a5", marginTop: 3 }}>· {e}</p>)}
-                    </div>
-                  )}
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 11, marginBottom: 12 }}>
-                    <thead><tr>{["Line", "Type", "Status"].map(h => <th key={h} style={{ textAlign: "left", padding: "5px 8px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", fontSize: 10, color: "rgba(255,255,255,0.3)", fontWeight: 500 }}>{h}</th>)}</tr></thead>
-                    <tbody>
-                      {r.lineResults.map((l, j) => (
-                        <tr key={j}>
-                          <td style={{ padding: "5px 8px", borderBottom: "0.5px solid rgba(255,255,255,0.04)", fontFamily: "monospace", color: "rgba(255,255,255,0.3)", fontSize: 11 }}>{l.lineNum}</td>
-                          <td style={{ padding: "5px 8px", borderBottom: "0.5px solid rgba(255,255,255,0.04)", fontWeight: 500, color: "#fff", fontSize: 11 }}>{l.type}</td>
-                          <td style={{ padding: "5px 8px", borderBottom: "0.5px solid rgba(255,255,255,0.04)" }}>
-                            {l.errors.length === 0 && l.warnings.length === 0 && <span style={{ fontSize: 10, color: "#6ee7b7" }}>OK</span>}
-                            {l.errors.length > 0 && <><span style={{ fontSize: 10, color: "#fca5a5" }}>Error</span>{l.errors.map((e, k) => <div key={k} style={{ fontSize: 10, color: "#fca5a5", marginTop: 2 }}>· {e}</div>)}</>}
-                            {l.warnings.length > 0 && <>{l.errors.length === 0 && <span style={{ fontSize: 10, color: "#fcd34d" }}>Warning</span>}{l.warnings.map((w, k) => <div key={k} style={{ fontSize: 10, color: "#fcd34d", marginTop: 2 }}>{w}</div>)}</>}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
-                    <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>BIR-style validation report</p>
-                    <div style={{ display: "flex", gap: 6 }}>
-                      <button onClick={() => navigator.clipboard.writeText(r.txtReport).catch(() => {})} style={btnStyle}><i className="ti ti-copy" style={{ fontSize: 11 }} /> Copy</button>
-                      <button onClick={() => downloadTxt(r)} style={btnStyle}><i className="ti ti-download" style={{ fontSize: 11 }} /> Download .TXT</button>
-                    </div>
-                  </div>
-                  <pre style={{ fontFamily: "monospace", fontSize: 11, color: "rgba(255,255,255,0.6)", background: "rgba(255,255,255,0.03)", padding: "10px 12px", borderRadius: 8, overflowX: "auto", lineHeight: 1.6, whiteSpace: "pre" }}>{r.txtReport}</pre>
-                </div>
-              )}
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function BatchSAWTModal({ quarter, yearStr, clientsWithForms, onClose, onConfirm }: {
-  quarter: string;
-  yearStr: string;
-  clientsWithForms: { client: any; forms: ExtractedForm[] }[];
-  onClose: () => void;
-  onConfirm: (selected: { client: any; forms: ExtractedForm[] }[], quarter: string, folderName: string) => void;
-}) {
-  const [checked, setChecked] = useState<Record<string, boolean>>(() => {
-    const init: Record<string, boolean> = {};
-    clientsWithForms.forEach(c => { init[c.client.id] = true; });
-    return init;
-  });
-  const [folderName, setFolderName] = useState(`SAWT-${quarter}-${yearStr}`);
-  const selectedCount = Object.values(checked).filter(Boolean).length;
-  const selectedClients = clientsWithForms.filter(c => checked[c.client.id]);
-  const inputStyle: React.CSSProperties = { width: "100%", padding: "8px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.12)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", outline: "none" };
-  const fsSupportedHint = typeof window !== "undefined" && "showDirectoryPicker" in window;
-
-  return (
-    <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
-      <div style={{ width: "100%", maxWidth: 560, background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden" }}>
-        <div style={{ padding: "18px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div style={{ width: 34, height: 34, background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
-              <i className="ti ti-files" style={{ fontSize: 16, color: "#a5b4fc" }} />
-            </div>
-            <div>
-              <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Batch Generate SAWT</p>
-              <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{quarter} {yearStr} — select clients to include</p>
-            </div>
-          </div>
-          <button onClick={onClose} style={{ width: 28, height: 28, background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 16, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "inherit" }}>X</button>
-        </div>
-        <div style={{ padding: "10px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{selectedCount} of {clientsWithForms.length} clients selected</p>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={() => { const all: Record<string, boolean> = {}; clientsWithForms.forEach(c => { all[c.client.id] = true; }); setChecked(all); }} style={{ padding: "3px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Select All</button>
-            <button onClick={() => { const none: Record<string, boolean> = {}; clientsWithForms.forEach(c => { none[c.client.id] = false; }); setChecked(none); }} style={{ padding: "3px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>None</button>
-          </div>
-        </div>
-        <div style={{ maxHeight: 260, overflowY: "auto", padding: "8px 0" }}>
-          {clientsWithForms.length === 0
-            ? <p style={{ padding: "2rem", textAlign: "center", fontSize: 12, color: "rgba(255,255,255,0.25)" }}>No clients have 2307s for {quarter} {yearStr}.</p>
-            : clientsWithForms.map(({ client, forms }) => (
-              <div key={client.id} onClick={() => setChecked(prev => ({ ...prev, [client.id]: !prev[client.id] }))} style={{ display: "flex", alignItems: "center", gap: 12, padding: "10px 20px", cursor: "pointer", background: checked[client.id] ? "rgba(99,102,241,0.06)" : "transparent", borderBottom: "0.5px solid rgba(255,255,255,0.04)", transition: "background 0.15s" }}>
-                <div style={{ width: 18, height: 18, borderRadius: 5, border: `1.5px solid ${checked[client.id] ? "#6366f1" : "rgba(255,255,255,0.2)"}`, background: checked[client.id] ? "#6366f1" : "transparent", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0, transition: "all 0.15s" }}>
-                  {checked[client.id] && <i className="ti ti-check" style={{ fontSize: 11, color: "#fff" }} />}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <p style={{ fontSize: 12, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{client.name}</p>
-                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{client.tin || "No TIN"} · {forms.length} 2307{forms.length !== 1 ? "s" : ""}</p>
-                </div>
-              </div>
-            ))}
-        </div>
-        <div style={{ padding: "14px 20px", borderTop: "0.5px solid rgba(255,255,255,0.06)" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
-            <i className="ti ti-folder" style={{ fontSize: 13, color: "rgba(255,255,255,0.3)" }} />
-            <p style={{ fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.4)" }}>Output folder name</p>
-            {!fsSupportedHint && <span style={{ fontSize: 10, padding: "2px 7px", background: "rgba(251,191,36,0.1)", border: "0.5px solid rgba(251,191,36,0.25)", borderRadius: 20, color: "#fcd34d" }}>Falls back to Downloads</span>}
-          </div>
-          <input value={folderName} onChange={e => setFolderName(e.target.value.replace(/[/\\]/g, "-"))} placeholder={`SAWT-${quarter}-${yearStr}`} style={inputStyle} />
-          {fsSupportedHint
-            ? <p style={{ fontSize: 10, color: "rgba(255,255,255,0.2)", marginTop: 5 }}>You&apos;ll be prompted to pick or create a folder — all files will be saved there.</p>
-            : <p style={{ fontSize: 10, color: "rgba(251,191,36,0.5)", marginTop: 5 }}>Your browser doesn&apos;t support folder picking. Files will download to Downloads with the folder name as a filename prefix.</p>
-          }
-        </div>
-        <div style={{ padding: "14px 20px", borderTop: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 10 }}>
-          <div style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>
-            Will generate: <span style={{ color: "#a5b4fc", fontWeight: 600 }}>{selectedCount} DAT</span>, <span style={{ color: "#a5b4fc", fontWeight: 600 }}>{selectedCount} HTML</span>, <span style={{ color: "#a5b4fc", fontWeight: 600 }}>1 summary TXT</span>
-          </div>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button onClick={onClose} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-            <button onClick={() => selectedCount > 0 && onConfirm(selectedClients, quarter, folderName.trim() || `SAWT-${quarter}-${yearStr}`)} disabled={selectedCount === 0} style={{ padding: "8px 16px", background: selectedCount > 0 ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.06)", border: "none", borderRadius: 10, color: selectedCount > 0 ? "#fff" : "rgba(255,255,255,0.3)", fontSize: 13, fontWeight: 600, cursor: selectedCount > 0 ? "pointer" : "default", fontFamily: "inherit" }}>
-              <i className="ti ti-folder-down" style={{ fontSize: 13 }} /> Generate {selectedCount > 0 ? `(${selectedCount})` : ""}
-            </button>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 export default function TaxPage() {
   const [sendStatus, setSendStatus] = useState("");
@@ -328,7 +111,6 @@ export default function TaxPage() {
     onConfirmSkip?: () => void;
     onConfirm: () => void;
   } | null>(null);
-  const [resubmitInput, setResubmitInput] = useState("");
   // ────────────────────────────────────────────────────────────
 
   // ── Manual Income State ──────────────────────────────────────
@@ -493,16 +275,9 @@ export default function TaxPage() {
     setEditAddress(client.address || "");
     setEditCreditYear((new Date().getFullYear() - 1).toString());
     setDeletedPayments([]);
-    const { data: existingCredit } = await supabase.from("prior_year_credits").select("excess_credit").eq("client_id", client.id).eq("year", new Date().getFullYear() - 1).single();
-    setEditCredit(existingCredit?.excess_credit?.toString() || "");
-    const { data: existingPayments } = await supabase.from("tax_payments").select("quarter, amount_paid").eq("client_id", client.id).eq("year", parseInt(year));
-    const p = { Q1: "", Q2: "", Q3: "" };
-    (existingPayments || []).forEach((pay: any) => {
-      if (pay.quarter === 1) p.Q1 = pay.amount_paid?.toString() || "";
-      if (pay.quarter === 2) p.Q2 = pay.amount_paid?.toString() || "";
-      if (pay.quarter === 3) p.Q3 = pay.amount_paid?.toString() || "";
-    });
-    setEditPayments(p);
+    const data = await fetchClientEditData(client.id, parseInt(year));
+    setEditCredit(data.priorYearCredit);
+    setEditPayments(data.payments);
   };
 
   const clearPayment = useCallback((qNum: number) => {
@@ -513,51 +288,61 @@ export default function TaxPage() {
 
   const addClient = async () => {
     if (!newName.trim()) return alert("Name is required");
-    const { data, error } = await supabase.from("clients").insert({
-      name: newName.trim(), tin: newTin.trim() || null, tax_type: newTaxType,
-      last_name: newLastName.trim() || null, first_name: newFirstName.trim() || null,
-      middle_name: newMiddleName.trim() || null, rdo_code: newRdo.trim() || null,
-    }).select().single();
-    if (error) return alert("Error adding client: " + error.message);
-    if (newCredit && data) {
-      await supabase.from("prior_year_credits").insert({ client_id: data.id, year: parseInt(creditYear), excess_credit: parseFloat(newCredit) || 0 });
+    try {
+      await createClientService({
+        name: newName.trim(),
+        tin: newTin.trim() || null,
+        tax_type: newTaxType,
+        last_name: newLastName.trim() || null,
+        first_name: newFirstName.trim() || null,
+        middle_name: newMiddleName.trim() || null,
+        rdo_code: newRdo.trim() || null,
+        prior_year_credit: newCredit ? parseFloat(newCredit) : null,
+        credit_year: newCredit ? parseInt(creditYear) : null,
+      });
+      setNewName(""); setNewTin(""); setNewCredit(""); setNewTaxType("8%");
+      setNewLastName(""); setNewFirstName(""); setNewMiddleName(""); setNewRdo("");
+      setShowAddClient(false);
+      loadClients();
+    } catch (err: any) {
+      alert(err.message);
     }
-    setNewName(""); setNewTin(""); setNewCredit(""); setNewTaxType("8%");
-    setNewLastName(""); setNewFirstName(""); setNewMiddleName(""); setNewRdo("");
-    setShowAddClient(false);
-    loadClients();
   };
 
   const saveEditClient = useCallback(async () => {
     if (!editingClient) return;
-    await supabase.from("clients").update({
+    await updateClientService({
+      clientId: editingClient.id,
       tax_type: editTaxType,
       last_name: editLastName.trim() || null,
       first_name: editFirstName.trim() || null,
       middle_name: editMiddleName.trim() || null,
       rdo_code: editRdo.trim() || null,
       address: editAddress.trim() || null,
-    }).eq("id", editingClient.id);
-    if (editCredit) {
-      const creditYearInt = parseInt(editCreditYear) || new Date().getFullYear() - 1;
-      const { data: existing } = await supabase.from("prior_year_credits").select("id").eq("client_id", editingClient.id).eq("year", creditYearInt).single();
-      if (existing) { await supabase.from("prior_year_credits").update({ excess_credit: parseFloat(editCredit) || 0 }).eq("id", existing.id); }
-      else { await supabase.from("prior_year_credits").insert({ client_id: editingClient.id, year: creditYearInt, excess_credit: parseFloat(editCredit) || 0 }); }
-    }
-    for (const qNum of deletedPayments) { await supabase.from("tax_payments").delete().eq("client_id", editingClient.id).eq("year", parseInt(year)).eq("quarter", qNum); }
-    for (const [q, amount] of Object.entries(editPayments)) {
-      if (amount === "") continue;
-      const qNum = parseInt(q.replace("Q", ""));
-      if (deletedPayments.includes(qNum)) continue;
-      const amountPaid = parseFloat(amount) || 0;
-      const { data: existing } = await supabase.from("tax_payments").select("id").eq("client_id", editingClient.id).eq("year", parseInt(year)).eq("quarter", qNum).single();
-      if (existing) { await supabase.from("tax_payments").update({ amount_paid: amountPaid }).eq("id", existing.id); }
-      else { await supabase.from("tax_payments").insert({ client_id: editingClient.id, year: parseInt(year), quarter: qNum, amount_paid: amountPaid }); }
-    }
-    const updatedClient = { ...editingClient, tax_type: editTaxType, last_name: editLastName.trim() || null, first_name: editFirstName.trim() || null, middle_name: editMiddleName.trim() || null, rdo_code: editRdo.trim() || null, address: editAddress.trim() || null };
-    setEditingClient(null); setEditCredit(""); setEditPayments({ Q1: "", Q2: "", Q3: "" }); setDeletedPayments([]);
+      credit: editCredit || undefined,
+      creditYear: parseInt(editCreditYear) || new Date().getFullYear() - 1,
+      payments: editPayments,
+      deletedPayments,
+      year: parseInt(year),
+    });
+    const updatedClient = {
+      ...editingClient,
+      tax_type: editTaxType,
+      last_name: editLastName.trim() || null,
+      first_name: editFirstName.trim() || null,
+      middle_name: editMiddleName.trim() || null,
+      rdo_code: editRdo.trim() || null,
+      address: editAddress.trim() || null,
+    };
+    setEditingClient(null);
+    setEditCredit("");
+    setEditPayments({ Q1: "", Q2: "", Q3: "" });
+    setDeletedPayments([]);
     loadClients();
-    if (selected?.id === editingClient.id) { setSelected(updatedClient); computeSummary(updatedClient); }
+    if (selected?.id === editingClient.id) {
+      setSelected(updatedClient);
+      computeSummary(updatedClient);
+    }
   }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editAddress, editCredit, editCreditYear, editPayments, deletedPayments, selected, year, computeSummary]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGenerateSAWT = (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
@@ -582,7 +367,6 @@ export default function TaxPage() {
     const existingSubmission = submissions[`Q${quarterNum}`];
     if (existingSubmission) {
       const submittedDate = new Date(existingSubmission).toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric", hour: "2-digit", minute: "2-digit" });
-      setResubmitInput("");
       setResubmitModal({
         clientName: fullName,
         quarterNum,
@@ -596,7 +380,6 @@ export default function TaxPage() {
 
   const proceedSendToBIR = async (client: any, quarterNum: number, quarterForms: ExtractedForm[], fullName: string) => {
     setResubmitModal(null);
-    setResubmitInput("");
     try {
       const result = generateSAWTContent(
         { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
@@ -645,7 +428,6 @@ export default function TaxPage() {
       const duplicateNames = alreadySubmitted.map(item =>
         `${item.client.last_name || ""}, ${item.client.first_name || ""}`.trim()
       ).join("\n");
-      setResubmitInput("");
       setResubmitModal({
         clientName: duplicateNames,
         quarterNum: alreadySubmitted[0].quarterNum,
@@ -664,7 +446,6 @@ export default function TaxPage() {
 
   const proceedBatchSend = async (clientsToSend: typeof batchEmailClients) => {
     setResubmitModal(null);
-    setResubmitInput("");
     if (clientsToSend.length === 0) return;
     setBatchEmailSending(true);
     setBatchEmailStatus("");
@@ -692,27 +473,8 @@ export default function TaxPage() {
   };
 
   const openBatchModal = async (quarterStr: string) => {
-    const qNum = parseInt(quarterStr.replace("Q", ""));
-    const { data: uploads } = await supabase.from("uploads").select("*").eq("status", "extracted");
-    const allUploads = uploads || [];
-    const result: { client: any; forms: ExtractedForm[] }[] = [];
-    for (const client of clients.filter(c => !c.tax_type || c.tax_type === "8%")) {
-      const forms2307 = allUploads.filter(u => {
-        const d = parseExtractedData(u.extracted_data);
-        return d?.payee_tin?.replace(/\D/g, "").includes(client.tin?.replace(/\D/g, "") || "NOMATCH") || d?.payee_name?.toLowerCase().includes(client.name.toLowerCase());
-      });
-      const qForms: ExtractedForm[] = [];
-      forms2307.forEach(u => {
-        const d = parseExtractedData(u.extracted_data);
-        const period = d?.period_to || d?.period_from || "";
-        const month = parseInt(period.split("/")[0]) || 0;
-        const startMonth = (qNum - 1) * 3 + 1;
-        const endMonth = qNum * 3;
-        if (month >= startMonth && month <= endMonth) qForms.push(d);
-      });
-      if (qForms.length > 0) result.push({ client, forms: qForms });
-    }
-    setBatchModal({ quarter: quarterStr, clientsWithForms: result });
+    const result = await buildBatchSAWTQueue(clients, quarterStr, year);
+    setBatchModal({ quarter: quarterStr, clientsWithForms: result.queue });
   };
 
   const runBatchGenerate = async (selectedClients: { client: any; forms: ExtractedForm[] }[], quarterStr: string, folderName: string) => {
@@ -853,62 +615,17 @@ export default function TaxPage() {
 
       {/* Resubmit Warning Modal */}
       {resubmitModal && (
-        <div style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.85)", display: "flex", alignItems: "center", justifyContent: "center", padding: "2rem 1rem" }}>
-          <div style={{ width: "100%", maxWidth: 500, background: "#1a1a1a", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 20, overflow: "hidden" }}>
-            <div style={{ padding: "18px 20px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ width: 36, height: 36, background: "rgba(239,68,68,0.1)", border: "0.5px solid rgba(239,68,68,0.3)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                <i className="ti ti-alert-triangle" style={{ fontSize: 18, color: "#fca5a5" }} />
-              </div>
-              <div>
-                <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>Duplicate Submission Detected</p>
-                <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Some clients were already submitted to BIR</p>
-              </div>
-            </div>
-            <div style={{ padding: "20px" }}>
-              <div style={{ padding: "12px 14px", background: "rgba(239,68,68,0.06)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 10, marginBottom: 12 }}>
-                <p style={{ fontSize: 11, fontWeight: 600, color: "#fca5a5", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>⚠️ Already Submitted</p>
-                <p style={{ fontSize: 12, color: "#fca5a5", whiteSpace: "pre-line", lineHeight: 1.8 }}>{resubmitModal.clientName}</p>
-              </div>
-              {resubmitModal.newClients && resubmitModal.newClients.length > 0 && (
-                <div style={{ padding: "12px 14px", background: "rgba(16,185,129,0.06)", border: "0.5px solid rgba(16,185,129,0.2)", borderRadius: 10, marginBottom: 16 }}>
-                  <p style={{ fontSize: 11, fontWeight: 600, color: "#6ee7b7", marginBottom: 6, textTransform: "uppercase", letterSpacing: "0.5px" }}>✅ Ready for First Submission</p>
-                  <p style={{ fontSize: 12, color: "#6ee7b7", whiteSpace: "pre-line", lineHeight: 1.8 }}>
-                    {resubmitModal.newClients.map((item: any) =>
-                      `${item.client.last_name || ""}, ${item.client.first_name || ""}`.trim()
-                    ).join("\n")}
-                  </p>
-                </div>
-              )}
-              <p style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 12, lineHeight: 1.6 }}>
-                {resubmitModal.onConfirmSkip
-                  ? `To send only new clients, click "Skip Duplicates". To send all including duplicates, type resubmit below.`
-                  : `Type resubmit below to confirm sending again.`}
-              </p>
-              <input
-                value={resubmitInput}
-                onChange={e => setResubmitInput(e.target.value)}
-                placeholder="Type resubmit to send all..."
-                style={{ width: "100%", padding: "10px 12px", background: "rgba(255,255,255,0.06)", border: `0.5px solid ${resubmitInput.toLowerCase() === "resubmit" ? "rgba(239,68,68,0.5)" : "rgba(255,255,255,0.1)"}`, borderRadius: 8, color: "#fff", fontSize: 13, fontFamily: "inherit", outline: "none", marginBottom: 16 }}
-                autoFocus
-              />
-              <div style={{ display: "flex", gap: 8, justifyContent: "flex-end", flexWrap: "wrap" }}>
-                <button onClick={() => { setResubmitModal(null); setResubmitInput(""); }} style={{ padding: "8px 16px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>Cancel</button>
-                {resubmitModal.onConfirmSkip && (
-                  <button onClick={resubmitModal.onConfirmSkip} style={{ padding: "8px 16px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}>
-                    Skip Duplicates & Send {resubmitModal.newClients?.length} New
-                  </button>
-                )}
-                <button
-                  onClick={() => resubmitInput.toLowerCase() === "resubmit" && resubmitModal.onConfirm()}
-                  disabled={resubmitInput.toLowerCase() !== "resubmit"}
-                  style={{ padding: "8px 16px", background: resubmitInput.toLowerCase() === "resubmit" ? "rgba(239,68,68,0.2)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${resubmitInput.toLowerCase() === "resubmit" ? "rgba(239,68,68,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: resubmitInput.toLowerCase() === "resubmit" ? "#fca5a5" : "rgba(255,255,255,0.2)", fontSize: 13, fontWeight: 600, cursor: resubmitInput.toLowerCase() === "resubmit" ? "pointer" : "default", fontFamily: "inherit" }}>
-                  Send All
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+  <ResubmitModal
+    clientName={resubmitModal.clientName}
+    quarterNum={resubmitModal.quarterNum}
+    submittedAt={resubmitModal.submittedAt}
+    newClients={resubmitModal.newClients}
+    duplicateClients={resubmitModal.duplicateClients}
+    onConfirmSkip={resubmitModal.onConfirmSkip}
+    onConfirm={resubmitModal.onConfirm}
+    onClose={() => setResubmitModal(null)}
+  />
+)}
 
       {batchGenerating && (
         <div style={{ position: "fixed", bottom: 24, right: 24, zIndex: 9998, padding: "12px 18px", background: "#1a1a1a", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 12, display: "flex", alignItems: "center", gap: 10, boxShadow: "0 8px 32px rgba(0,0,0,0.4)" }}>
