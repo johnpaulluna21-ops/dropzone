@@ -27,7 +27,15 @@ function cleanJson(text: string): string {
   if (jsonMatch) return jsonMatch[1].trim();
   return text.trim();
 }
-
+function normalizeTin(tin: string): string {
+  const digits = tin.replace(/[\s-]/g, "")
+  if (digits.length < 9) return digits
+  const part1 = digits.slice(0, 3)
+  const part2 = digits.slice(3, 6)
+  const part3 = digits.slice(6, 9)
+  const part4 = digits.slice(9)
+  return part4 ? `${part1}-${part2}-${part3}-${part4}` : `${part1}-${part2}-${part3}`
+}
 async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string }> {
   try {
     const compressed = await sharp(Buffer.from(buffer))
@@ -287,7 +295,7 @@ export async function POST(request: NextRequest) {
       .eq("id", uploadId);
 // Write 1701A data to annual_itr_records table
 if (useAITRPrompt && extractedData && !extractedData.parse_error) {
-  const tin = extractedData.tin?.replace(/\s/g, "") ?? null
+  const tin = extractedData.tin ? normalizeTin(extractedData.tin) : null
 
   // Resolve client_id from TIN
   let annualClientId: string | null = null
@@ -365,7 +373,7 @@ if (use2307Prompt && extractedData && !extractedData.parse_error) {
   let resolvedClientId: string | null = null;
 
   if (extractedData.payee_tin && extractedData.payee_name) {
-    const cleanTin = extractedData.payee_tin.replace(/\s/g, "");
+    const cleanTin = normalizeTin(extractedData.payee_tin);
     const parsedName = parsePhilippineName(extractedData.payee_name || "");
 
     const { data: existing } = await supabase
