@@ -11,6 +11,7 @@ export type IncomeConfidence =
   | "verified"
   | "estimated"
   | "manual"
+  | "needs_review"
 
 export interface NormalizedIncomeRecord {
   client_id: string

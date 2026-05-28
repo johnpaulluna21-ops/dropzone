@@ -1,6 +1,6 @@
 // modules/tax/mappers/from-2307.ts
 
-import type { NormalizedIncomeRecord } from "@/core/schemas/income-record"
+import type { NormalizedIncomeRecord, IncomeConfidence } from "@/core/schemas/income-record"
 
 interface Raw2307Extraction {
   client_id: string
@@ -12,7 +12,7 @@ interface Raw2307Extraction {
   quarter: 1 | 2 | 3 | 4
   year: number
   source_document_id: string
-  confidence: "verified" | "estimated"
+  confidence: IncomeConfidence
 }
 
 export function mapFrom2307(raw: Raw2307Extraction): NormalizedIncomeRecord {
@@ -31,4 +31,40 @@ export function mapFrom2307(raw: Raw2307Extraction): NormalizedIncomeRecord {
     source_document_id: raw.source_document_id,
     confidence: raw.confidence,
   }
+}
+// Derives quarter (1-4) from period_from or period_to string (MM/DD/YYYY)
+// Returns null if period is missing or unparseable — never guesses
+export function deriveQuarterFromPeriod(
+  period_from?: string | null,
+  period_to?: string | null
+): number | null {
+  const raw = period_from || period_to;
+  if (!raw) return null;
+
+  const parts = raw.split("/");
+  if (parts.length < 1) return null;
+
+  const month = parseInt(parts[0], 10);
+  if (isNaN(month) || month < 1 || month > 12) return null;
+
+  if (month <= 3) return 1;
+  if (month <= 6) return 2;
+  if (month <= 9) return 3;
+  return 4;
+}
+
+export function deriveYearFromPeriod(
+  period_from?: string | null,
+  period_to?: string | null
+): number | null {
+  const raw = period_to || period_from;
+  if (!raw) return null;
+
+  const parts = raw.split("/");
+  if (parts.length < 3) return null;
+
+  const year = parseInt(parts[2], 10);
+  if (isNaN(year) || year < 2000) return null;
+
+  return year;
 }

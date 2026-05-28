@@ -7,7 +7,7 @@ import { r2, BUCKET_NAME } from "../../../lib/r2";
 import sharp from "sharp";
 import * as XLSX from "xlsx";
 import mammoth from "mammoth";
-import { mapFrom2307 } from "@/modules/tax/mappers/from-2307";
+import { mapFrom2307, deriveQuarterFromPeriod, deriveYearFromPeriod } from "@/modules/tax/mappers/from-2307";
 import { parsePhilippineName } from "@/modules/tax/parsePhilippineName";
 
 const anthropic = new Anthropic({
@@ -285,46 +285,78 @@ export async function POST(request: NextRequest) {
       })
       .eq("id", uploadId);
 
-    // Map to NormalizedIncomeRecord if this is a 2307
-    if (use2307Prompt && extractedData && !extractedData.parse_error) {
-      const normalized = mapFrom2307({
-        client_id: upload.id,
-        payor_name: extractedData.payor_name || "",
-        payor_tin: extractedData.payor_tin || "",
-        gross_income: extractedData.total_income || 0,
-        tax_withheld: extractedData.total_tax_withheld || 0,
-        atc: extractedData.atc || null,
-        quarter: 1,
-        year: new Date().getFullYear(),
-        source_document_id: upload.id,
-        confidence: "verified",
-      })
-      await supabase
-        .from("uploads")
-        .update({ normalized_income: normalized })
-        .eq("id", uploadId)
-    }
+    // Fix: client lookup first, then map with correct client_id, quarter, and year
+if (use2307Prompt && extractedData && !extractedData.parse_error) {
 
-    // Auto-create client from 2307
-    if (use2307Prompt && extractedData?.payee_tin && extractedData?.payee_name) {
-      const cleanTin = extractedData.payee_tin.replace(/\s/g, "");
-      const parsedName = parsePhilippineName(extractedData.payee_name || "");
-      const { data: existing } = await supabase
+  // Step 1 — resolve client_id FIRST before mapping
+  let resolvedClientId: string | null = null;
+
+  if (extractedData.payee_tin && extractedData.payee_name) {
+    const cleanTin = extractedData.payee_tin.replace(/\s/g, "");
+    const parsedName = parsePhilippineName(extractedData.payee_name || "");
+
+    const { data: existing } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("tin", cleanTin)
+      .single();
+
+    if (existing) {
+      resolvedClientId = existing.id;
+    } else {
+      const { data: newClient } = await supabase
         .from("clients")
-        .select("id")
-        .eq("tin", cleanTin)
-        .single();
-      if (!existing) {
-        await supabase.from("clients").insert({
+        .insert({
           name: extractedData.payee_name,
           tin: cleanTin,
           last_name: parsedName.last_name,
           first_name: parsedName.first_name,
           middle_name: parsedName.middle_name,
           address: extractedData.payee_address || null,
-        });
-      }
+        })
+        .select("id")
+        .single();
+
+      resolvedClientId = newClient?.id ?? null;
     }
+  }
+
+  // Step 2 — derive quarter and year from extracted period fields
+  const derivedQuarter = deriveQuarterFromPeriod(
+    extractedData.period_from,
+    extractedData.period_to
+  );
+
+  const derivedYear = deriveYearFromPeriod(
+    extractedData.period_from,
+    extractedData.period_to
+  );
+
+  // Step 3 — flag as needs_review if period could not be derived
+  const confidence: "verified" | "needs_review" =
+  derivedQuarter === null || derivedYear === null
+    ? "needs_review"
+    : "verified";
+
+  // Step 4 — map with correct client_id, quarter, year
+  const normalized = mapFrom2307({
+    client_id: resolvedClientId ?? upload.id,
+    payor_name: extractedData.payor_name || "",
+    payor_tin: extractedData.payor_tin || "",
+    gross_income: extractedData.total_income || 0,
+    tax_withheld: extractedData.total_tax_withheld || 0,
+    atc: extractedData.atc || null,
+    quarter: (derivedQuarter ?? 1) as 1 | 2 | 3 | 4,
+    year: derivedYear ?? new Date().getFullYear(),
+    source_document_id: upload.id,
+    confidence,
+  });
+
+  await supabase
+    .from("uploads")
+    .update({ normalized_income: normalized })
+    .eq("id", uploadId);
+}
 
     return NextResponse.json({ success: true, data: extractedData });
   } catch (error) {
