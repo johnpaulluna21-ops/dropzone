@@ -65,7 +65,7 @@ const renderTaskRef = useRef<any>(null);
     }
     renderPage();
     return () => { cancelled = true; if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; } };
-  }, [currentPage, loading]);
+  }, [currentPage, totalPages]);
 
   if (loading) return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "rgba(255,255,255,0.3)", fontSize: 13 }}>Loading document...</div>;
   if (error) return <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: "100%", color: "#fca5a5", fontSize: 13 }}>{error}</div>;
