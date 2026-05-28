@@ -46,9 +46,6 @@ import { type ClientRecord } from "@/core/types/client";
 import { type BatchEmailItem } from "@/core/types/tax";
 import { fetchAnnualITR } from "@/services/tax/fetchAnnualITR"
 
-import { fetchClientAITR } from "@/services/tax";
-// import { mapFrom1701A } from "@/modules/tax/mappers/from-1701a";
-
 const PAGE_SIZE = 10;
 
 export default function TaxPage() {
@@ -224,7 +221,8 @@ setPriorYearAITR(priorAITR);
     } finally {
       setLoading(false);
     }
-  }, [year, editingClient]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+}, [year, editingClient]);
 
   // ── Manual income: save via service ─────────────────────────
   const handleSaveManualIncome = async () => {
@@ -1018,7 +1016,7 @@ const openEdit = useCallback(async (client: any) => {
                                     {[
                                       { label: "Gross Income", prior: priorYearAITR.gross_income, current: summary.quarters[summary.quarters.length-1]?.item51 || 0 },
                                       { label: "Less: P250,000", prior: priorYearAITR.allowable_deduction, current: 250000 },
-                                      { label: "Net Taxable Income", prior: priorYearAITR.net_taxable_income, current: summary.quarters[summary.quarters.length-1]?.item53 || 0 },
+                                      { label: "Net Taxable Income", prior: priorYearAITR.taxable_income_loss, current: summary.quarters[summary.quarters.length-1]?.item53 || 0 },
                                       { label: "Tax Due (8%)", prior: priorYearAITR.tax_due, current: summary.quarters[summary.quarters.length-1]?.item54 || 0 },
                                       { label: "Total Credits", prior: priorYearAITR.total_credits, current: summary.quarters[summary.quarters.length-1]?.item62 || 0 },
                                       { label: "Result", prior: priorYearAITR.tax_payable_overpayment, current: summary.quarters[summary.quarters.length-1]?.item63 || 0, isResult: true },
