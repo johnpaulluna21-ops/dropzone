@@ -4,6 +4,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import Link from "next/link";
+import { PDFPreview } from "@/components/tax/PDFPreview";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,6 +29,7 @@ export default function AdminPage() {
   const [dragEnd, setDragEnd] = useState<number | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const lastCheckedRef = useRef<string | null>(null);
+  const [previewTab, setPreviewTab] = useState<"extracted" | "document">("extracted");
 
   useEffect(() => {
     fetchUploads();
@@ -480,10 +482,10 @@ export default function AdminPage() {
             </div>
 
             {/* Preview Panel */}
-            <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column" }}>
+            <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, display: "flex", flexDirection: "column", overflow: "hidden" }}>
               {selected ? (
                 <>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.25rem", paddingBottom: "1rem", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "1.25rem 1.5rem 1rem", borderBottom: "0.5px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
                     <div style={{ width: 32, height: 32, background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
                       <i className="ti ti-file-text" style={{ fontSize: 16, color: "#a5b4fc" }} />
                     </div>
@@ -493,12 +495,31 @@ export default function AdminPage() {
                     </div>
                     <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 18 }}>×</button>
                   </div>
-                  <pre style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "1rem", overflow: "auto", flex: 1, lineHeight: 1.7, fontFamily: "monospace" }}>
-                    {JSON.stringify(parseExtractedData(selected.extracted_data), null, 2)}
-                  </pre>
+                  <div style={{ display: "flex", borderBottom: "0.5px solid rgba(255,255,255,0.08)", flexShrink: 0 }}>
+                    {(["extracted", "document"] as const).map((tab) => (
+                      <button
+                        key={tab}
+                        onClick={() => setPreviewTab(tab)}
+                        style={{ padding: "10px 20px", fontSize: 12, fontWeight: 500, background: "none", border: "none", borderBottom: previewTab === tab ? "2px solid #6ee7b7" : "2px solid transparent", color: previewTab === tab ? "#6ee7b7" : "rgba(255,255,255,0.4)", cursor: "pointer", fontFamily: "inherit" }}
+                      >
+                        {tab === "extracted" ? "Extracted Data" : "Document"}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ flex: 1, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                    {previewTab === "extracted" ? (
+                      <div style={{ flex: 1, overflow: "auto", padding: "1rem 1.5rem" }}>
+                        <pre style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "1rem", lineHeight: 1.7, fontFamily: "monospace", margin: 0 }}>
+                          {JSON.stringify(parseExtractedData(selected.extracted_data), null, 2)}
+                        </pre>
+                      </div>
+                    ) : (
+                      <PDFPreview uploadId={selected.id} />
+                    )}
+                  </div>
                 </>
               ) : (
-                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
+                <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12, padding: "1.5rem" }}>
                   <div style={{ width: 52, height: 52, background: "rgba(255,255,255,0.04)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <i className="ti ti-file-search" style={{ fontSize: 24, color: "rgba(255,255,255,0.2)" }} />
                   </div>
