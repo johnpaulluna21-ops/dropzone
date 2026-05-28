@@ -44,6 +44,7 @@ import { fetchClientEditData } from "@/services/client/fetchClientEditData";
 import { buildBatchSAWTQueue } from "@/services/tax/buildBatchSAWTQueue";
 import { type ClientRecord } from "@/core/types/client";
 import { type BatchEmailItem } from "@/core/types/tax";
+import { fetchAnnualITR } from "@/services/tax/fetchAnnualITR"
 
 import { fetchClientAITR } from "@/services/tax";
 // import { mapFrom1701A } from "@/modules/tax/mappers/from-1701a";
@@ -214,12 +215,10 @@ export default function TaxPage() {
 }
       
 
-      // Load prior year AITR
-      const priorYear = parseInt(year) - 1;
-      const aitrUpload = await fetchClientAITR(client.id, priorYear);
-      if (aitrUpload) {
-        // setPriorYearAITR(mapFrom1701A(extracted, aitrUpload.id));
-      }
+      // Load prior year AITR from annual_itr_records table
+const priorYear = parseInt(year) - 1;
+const priorAITR = await fetchAnnualITR(client.id, priorYear);
+setPriorYearAITR(priorAITR);
     } catch (err) {
       console.error(err);
     } finally {

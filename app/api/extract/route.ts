@@ -9,6 +9,7 @@ import * as XLSX from "xlsx";
 import mammoth from "mammoth";
 import { mapFrom2307, deriveQuarterFromPeriod, deriveYearFromPeriod } from "@/modules/tax/mappers/from-2307";
 import { parsePhilippineName } from "@/modules/tax/parsePhilippineName";
+import { saveAnnualITR } from "@/services/tax/saveAnnualITR"
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
@@ -284,7 +285,79 @@ export async function POST(request: NextRequest) {
         ...(documentType && { document_type: documentType }),
       })
       .eq("id", uploadId);
+// Write 1701A data to annual_itr_records table
+if (useAITRPrompt && extractedData && !extractedData.parse_error) {
+  const tin = extractedData.tin?.replace(/\s/g, "") ?? null
 
+  // Resolve client_id from TIN
+  let annualClientId: string | null = null
+  if (tin) {
+    const { data: existingClient } = await supabase
+      .from("clients")
+      .select("id")
+      .eq("tin", tin)
+      .single()
+
+    if (existingClient) {
+      annualClientId = existingClient.id
+    } else {
+      // Auto-create client from 1701A if not found
+      const parsedName = parsePhilippineName(extractedData.taxpayer_name || "")
+      const { data: newClient } = await supabase
+        .from("clients")
+        .insert({
+          name: extractedData.taxpayer_name,
+          tin,
+          last_name: parsedName.last_name,
+          first_name: parsedName.first_name,
+          middle_name: parsedName.middle_name,
+        })
+        .select("id")
+        .single()
+
+      annualClientId = newClient?.id ?? null
+    }
+  }
+
+  if (annualClientId) {
+    await saveAnnualITR({
+      client_id: annualClientId,
+      year: extractedData.tax_year ?? new Date().getFullYear(),
+      tax_rate_type: extractedData.tax_rate === "8%" ? "8%" : "graduated",
+      atc: extractedData.atc ?? null,
+      rdo_code: extractedData.rdo_code ?? null,
+
+      // Part II
+      tax_due: extractedData.part_ii?.item_20 ?? 0,
+      total_credits: extractedData.part_ii?.item_21 ?? 0,
+      tax_payable_overpayment: extractedData.part_ii?.item_22 ?? 0,
+
+      // Part IV.B
+      gross_sales: extractedData.part_iv_b?.item_47 ?? 0,
+      sales_returns: extractedData.part_iv_b?.item_48 ?? 0,
+      net_sales: extractedData.part_iv_b?.item_49 ?? 0,
+      total_taxable_income: extractedData.part_iv_b?.item_53 ?? 0,
+      allowable_deduction: extractedData.part_iv_b?.item_54 ?? 0,
+      taxable_income_loss: extractedData.part_iv_b?.item_55 ?? 0,
+
+      // Part IV.C
+      prior_year_excess_credits: extractedData.part_iv_c?.item_57 ?? 0,
+      quarterly_payments: extractedData.part_iv_c?.item_58 ?? 0,
+      cwt_q1_q3: extractedData.part_iv_c?.item_59 ?? 0,
+      cwt_q4: extractedData.part_iv_c?.item_60 ?? 0,
+
+      // Part IV.A
+      graduated_net_sales: extractedData.part_iv_a?.item_38 ?? 0,
+      graduated_osd: extractedData.part_iv_a?.item_39 ?? 0,
+      graduated_net_income: extractedData.part_iv_a?.item_40 ?? 0,
+      graduated_total_taxable_income: extractedData.part_iv_a?.item_45 ?? 0,
+
+      // Metadata
+      upload_id: upload.id,
+      confidence: "verified",
+    })
+  }
+}
     // Fix: client lookup first, then map with correct client_id, quarter, and year
 if (use2307Prompt && extractedData && !extractedData.parse_error) {
 
