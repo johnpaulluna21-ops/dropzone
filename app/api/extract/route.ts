@@ -27,15 +27,28 @@ function cleanJson(text: string): string {
   if (jsonMatch) return jsonMatch[1].trim();
   return text.trim();
 }
+
 function normalizeTin(tin: string): string {
+  // Remove all spaces and dashes, reformat as XXX-XXX-XXX-XXXX
   const digits = tin.replace(/[\s-]/g, "")
   if (digits.length < 9) return digits
   const part1 = digits.slice(0, 3)
   const part2 = digits.slice(3, 6)
   const part3 = digits.slice(6, 9)
   const part4 = digits.slice(9)
-  return part4 ? `${part1}-${part2}-${part3}-${part4}` : `${part1}-${part2}-${part3}`
+  return part4
+    ? `${part1}-${part2}-${part3}-${part4}`
+    : `${part1}-${part2}-${part3}`
 }
+
+function tinLookupKey(tin: string): string {
+  // Returns only first 9 digits formatted as XXX-XXX-XXX
+  // Used for deduplication — branch code is ignored
+  const digits = tin.replace(/[\s-]/g, "").slice(0, 9)
+  if (digits.length < 9) return digits
+  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6, 9)}`
+}
+
 async function compressImage(buffer: Buffer, mimeType: string): Promise<{ buffer: Buffer; mimeType: string }> {
   try {
     const compressed = await sharp(Buffer.from(buffer))
@@ -80,7 +93,6 @@ CRITICAL TIN EXTRACTION RULES:
 - Example: if you see "760-570-253-0000" extract exactly "760-570-253-0000"
 - Example: if you see "629-449-549-0000" extract exactly "629-449-549-0000"
 
-
 {
   "document_type": "BIR Form 2307",
   "period_from": "(MM/DD/YYYY)",
@@ -116,6 +128,12 @@ IMPORTANT: The income amount appears in only ONE of the three month columns:
 const BIR_1701A_PROMPT = `You are extracting data from a BIR Form 1701A — Annual Income Tax Return for individuals earning purely from business or profession (non-VAT filers).
 
 Extract ALL fields below with maximum accuracy. Return ONLY valid JSON, no markdown, no preamble.
+
+CRITICAL TIN EXTRACTION RULES:
+- TIN format is always: XXX-XXX-XXX-XXXX (last segment is 4-digit branch code)
+- NEVER truncate the TIN — extract ALL digits including trailing zeros
+- Example: if you see "625-782-132-0000" extract exactly "6257821320000"
+- Remove all dashes, return only digits
 
 CRITICAL RULES:
 - Extract numbers exactly as printed. No rounding, no approximation.
@@ -293,151 +311,137 @@ export async function POST(request: NextRequest) {
         ...(documentType && { document_type: documentType }),
       })
       .eq("id", uploadId);
-// Write 1701A data to annual_itr_records table
-if (useAITRPrompt && extractedData && !extractedData.parse_error) {
-  const tin = extractedData.tin ? normalizeTin(extractedData.tin) : null
 
-  // Resolve client_id from TIN
-  let annualClientId: string | null = null
-  if (tin) {
-    const { data: existingClient } = await supabase
-      .from("clients")
-      .select("id")
-      .eq("tin", tin)
-      .single()
+    // Write 1701A data to annual_itr_records table
+    if (useAITRPrompt && extractedData && !extractedData.parse_error) {
+      const tin = extractedData.tin ? normalizeTin(extractedData.tin) : null
 
-    if (existingClient) {
-      annualClientId = existingClient.id
-    } else {
-      // Auto-create client from 1701A if not found
-      const parsedName = parsePhilippineName(extractedData.taxpayer_name || "")
-      const { data: newClient } = await supabase
-        .from("clients")
-        .insert({
-          name: extractedData.taxpayer_name,
-          tin,
-          last_name: parsedName.last_name,
-          first_name: parsedName.first_name,
-          middle_name: parsedName.middle_name,
+      let annualClientId: string | null = null
+      if (tin) {
+        const { data: existingClient } = await supabase
+          .from("clients")
+          .select("id")
+          .ilike("tin", `${tinLookupKey(tin)}%`)
+          .single()
+
+        if (existingClient) {
+          annualClientId = existingClient.id
+        } else {
+          const parsedName = parsePhilippineName(extractedData.taxpayer_name || "")
+          const { data: newClient } = await supabase
+            .from("clients")
+            .insert({
+              name: extractedData.taxpayer_name,
+              tin,
+              last_name: parsedName.last_name,
+              first_name: parsedName.first_name,
+              middle_name: parsedName.middle_name,
+            })
+            .select("id")
+            .single()
+
+          annualClientId = newClient?.id ?? null
+        }
+      }
+
+      if (annualClientId) {
+        await saveAnnualITR({
+          client_id: annualClientId,
+          year: extractedData.tax_year ?? new Date().getFullYear(),
+          tax_rate_type: extractedData.tax_rate === "8%" ? "8%" : "graduated",
+          atc: extractedData.atc ?? null,
+          rdo_code: extractedData.rdo_code ?? null,
+          tax_due: extractedData.part_ii?.item_20 ?? 0,
+          total_credits: extractedData.part_ii?.item_21 ?? 0,
+          tax_payable_overpayment: extractedData.part_ii?.item_22 ?? 0,
+          gross_sales: extractedData.part_iv_b?.item_47 ?? 0,
+          sales_returns: extractedData.part_iv_b?.item_48 ?? 0,
+          net_sales: extractedData.part_iv_b?.item_49 ?? 0,
+          total_taxable_income: extractedData.part_iv_b?.item_53 ?? 0,
+          allowable_deduction: extractedData.part_iv_b?.item_54 ?? 0,
+          taxable_income_loss: extractedData.part_iv_b?.item_55 ?? 0,
+          prior_year_excess_credits: extractedData.part_iv_c?.item_57 ?? 0,
+          quarterly_payments: extractedData.part_iv_c?.item_58 ?? 0,
+          cwt_q1_q3: extractedData.part_iv_c?.item_59 ?? 0,
+          cwt_q4: extractedData.part_iv_c?.item_60 ?? 0,
+          graduated_net_sales: extractedData.part_iv_a?.item_38 ?? 0,
+          graduated_osd: extractedData.part_iv_a?.item_39 ?? 0,
+          graduated_net_income: extractedData.part_iv_a?.item_40 ?? 0,
+          graduated_total_taxable_income: extractedData.part_iv_a?.item_45 ?? 0,
+          upload_id: upload.id,
+          confidence: "verified",
         })
-        .select("id")
-        .single()
-
-      annualClientId = newClient?.id ?? null
+      }
     }
-  }
 
-  if (annualClientId) {
-    await saveAnnualITR({
-      client_id: annualClientId,
-      year: extractedData.tax_year ?? new Date().getFullYear(),
-      tax_rate_type: extractedData.tax_rate === "8%" ? "8%" : "graduated",
-      atc: extractedData.atc ?? null,
-      rdo_code: extractedData.rdo_code ?? null,
-
-      // Part II
-      tax_due: extractedData.part_ii?.item_20 ?? 0,
-      total_credits: extractedData.part_ii?.item_21 ?? 0,
-      tax_payable_overpayment: extractedData.part_ii?.item_22 ?? 0,
-
-      // Part IV.B
-      gross_sales: extractedData.part_iv_b?.item_47 ?? 0,
-      sales_returns: extractedData.part_iv_b?.item_48 ?? 0,
-      net_sales: extractedData.part_iv_b?.item_49 ?? 0,
-      total_taxable_income: extractedData.part_iv_b?.item_53 ?? 0,
-      allowable_deduction: extractedData.part_iv_b?.item_54 ?? 0,
-      taxable_income_loss: extractedData.part_iv_b?.item_55 ?? 0,
-
-      // Part IV.C
-      prior_year_excess_credits: extractedData.part_iv_c?.item_57 ?? 0,
-      quarterly_payments: extractedData.part_iv_c?.item_58 ?? 0,
-      cwt_q1_q3: extractedData.part_iv_c?.item_59 ?? 0,
-      cwt_q4: extractedData.part_iv_c?.item_60 ?? 0,
-
-      // Part IV.A
-      graduated_net_sales: extractedData.part_iv_a?.item_38 ?? 0,
-      graduated_osd: extractedData.part_iv_a?.item_39 ?? 0,
-      graduated_net_income: extractedData.part_iv_a?.item_40 ?? 0,
-      graduated_total_taxable_income: extractedData.part_iv_a?.item_45 ?? 0,
-
-      // Metadata
-      upload_id: upload.id,
-      confidence: "verified",
-    })
-  }
-}
     // Fix: client lookup first, then map with correct client_id, quarter, and year
-if (use2307Prompt && extractedData && !extractedData.parse_error) {
+    if (use2307Prompt && extractedData && !extractedData.parse_error) {
 
-  // Step 1 — resolve client_id FIRST before mapping
-  let resolvedClientId: string | null = null;
+      let resolvedClientId: string | null = null;
 
-  if (extractedData.payee_tin && extractedData.payee_name) {
-    const cleanTin = normalizeTin(extractedData.payee_tin);
-    const parsedName = parsePhilippineName(extractedData.payee_name || "");
+      if (extractedData.payee_tin && extractedData.payee_name) {
+        const cleanTin = normalizeTin(extractedData.payee_tin);
+        const parsedName = parsePhilippineName(extractedData.payee_name || "");
 
-    const { data: existing } = await supabase
-      .from("clients")
-      .select("id")
-      .eq("tin", cleanTin)
-      .single();
+        const { data: existing } = await supabase
+          .from("clients")
+          .select("id")
+          .ilike("tin", `${tinLookupKey(cleanTin)}%`)
+          .single();
 
-    if (existing) {
-      resolvedClientId = existing.id;
-    } else {
-      const { data: newClient } = await supabase
-        .from("clients")
-        .insert({
-          name: extractedData.payee_name,
-          tin: cleanTin,
-          last_name: parsedName.last_name,
-          first_name: parsedName.first_name,
-          middle_name: parsedName.middle_name,
-          address: extractedData.payee_address || null,
-        })
-        .select("id")
-        .single();
+        if (existing) {
+          resolvedClientId = existing.id;
+        } else {
+          const { data: newClient } = await supabase
+            .from("clients")
+            .insert({
+              name: extractedData.payee_name,
+              tin: cleanTin,
+              last_name: parsedName.last_name,
+              first_name: parsedName.first_name,
+              middle_name: parsedName.middle_name,
+              address: extractedData.payee_address || null,
+            })
+            .select("id")
+            .single();
 
-      resolvedClientId = newClient?.id ?? null;
+          resolvedClientId = newClient?.id ?? null;
+        }
+      }
+
+      const derivedQuarter = deriveQuarterFromPeriod(
+        extractedData.period_from,
+        extractedData.period_to
+      );
+
+      const derivedYear = deriveYearFromPeriod(
+        extractedData.period_from,
+        extractedData.period_to
+      );
+
+      const confidence: "verified" | "needs_review" =
+        derivedQuarter === null || derivedYear === null
+          ? "needs_review"
+          : "verified";
+
+      const normalized = mapFrom2307({
+        client_id: resolvedClientId ?? upload.id,
+        payor_name: extractedData.payor_name || "",
+        payor_tin: extractedData.payor_tin || "",
+        gross_income: extractedData.total_income || 0,
+        tax_withheld: extractedData.total_tax_withheld || 0,
+        atc: extractedData.atc || null,
+        quarter: (derivedQuarter ?? 1) as 1 | 2 | 3 | 4,
+        year: derivedYear ?? new Date().getFullYear(),
+        source_document_id: upload.id,
+        confidence,
+      });
+
+      await supabase
+        .from("uploads")
+        .update({ normalized_income: normalized })
+        .eq("id", uploadId);
     }
-  }
-
-  // Step 2 — derive quarter and year from extracted period fields
-  const derivedQuarter = deriveQuarterFromPeriod(
-    extractedData.period_from,
-    extractedData.period_to
-  );
-
-  const derivedYear = deriveYearFromPeriod(
-    extractedData.period_from,
-    extractedData.period_to
-  );
-
-  // Step 3 — flag as needs_review if period could not be derived
-  const confidence: "verified" | "needs_review" =
-  derivedQuarter === null || derivedYear === null
-    ? "needs_review"
-    : "verified";
-
-  // Step 4 — map with correct client_id, quarter, year
-  const normalized = mapFrom2307({
-    client_id: resolvedClientId ?? upload.id,
-    payor_name: extractedData.payor_name || "",
-    payor_tin: extractedData.payor_tin || "",
-    gross_income: extractedData.total_income || 0,
-    tax_withheld: extractedData.total_tax_withheld || 0,
-    atc: extractedData.atc || null,
-    quarter: (derivedQuarter ?? 1) as 1 | 2 | 3 | 4,
-    year: derivedYear ?? new Date().getFullYear(),
-    source_document_id: upload.id,
-    confidence,
-  });
-
-  await supabase
-    .from("uploads")
-    .update({ normalized_income: normalized })
-    .eq("id", uploadId);
-}
 
     return NextResponse.json({ success: true, data: extractedData });
   } catch (error) {
