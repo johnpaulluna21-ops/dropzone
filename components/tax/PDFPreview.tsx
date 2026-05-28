@@ -12,8 +12,10 @@ export function PDFPreview({ uploadId }: PDFPreviewProps) {
   const [totalPages, setTotalPages] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const pdfRef = useRef<any>(null);
-  const renderTaskRef = useRef<any>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+const pdfRef = useRef<any>(null);
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const renderTaskRef = useRef<any>(null);
 
   useEffect(() => {
     if (!uploadId) return;
@@ -58,7 +60,8 @@ export function PDFPreview({ uploadId }: PDFPreviewProps) {
         renderTaskRef.current = renderTask;
         await renderTask.promise;
         renderTaskRef.current = null;
-      } catch (err: any) { if (err?.name !== "RenderingCancelledException") console.error(err); }
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+} catch (err: any) { if (err?.name !== "RenderingCancelledException") console.error(err); }
     }
     renderPage();
     return () => { cancelled = true; if (renderTaskRef.current) { renderTaskRef.current.cancel(); renderTaskRef.current = null; } };
