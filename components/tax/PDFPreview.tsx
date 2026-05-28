@@ -34,7 +34,8 @@ export function PDFPreview({ uploadId }: PDFPreviewProps) {
         if (!res.ok) throw new Error("Failed to fetch signed URL");
         const { url } = await res.json();
 
-        const loadingTask = pdfjsLib.getDocument({
+        const lib = await getPdfjs();
+        const loadingTask = lib.getDocument({
           url,
           cMapUrl: "https://cdn.jsdelivr.net/npm/pdfjs-dist/cmaps/",
           cMapPacked: true,
@@ -74,7 +75,7 @@ export function PDFPreview({ uploadId }: PDFPreviewProps) {
       }
 
       try {
-        const page = await pdf.getPage(currentPage);
+        const page = await (pdf as PDFJSType.PDFDocumentProxy).getPage(currentPage);
         if (cancelled) return;
 
         const canvas = canvasRef.current;
