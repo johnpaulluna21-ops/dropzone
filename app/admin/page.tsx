@@ -377,7 +377,7 @@ export default function AdminPage() {
           )}
 
           {/* Main Grid */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, animation: "fadeUp 0.4s 0.1s ease both" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "2fr 3fr", gap: 16, animation: "fadeUp 0.4s 0.1s ease both" }}>
 
             {/* Table */}
             <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column" }}>
