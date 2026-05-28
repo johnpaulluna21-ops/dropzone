@@ -981,7 +981,7 @@ const openEdit = useCallback(async (client: any) => {
                               { label: "Total Income", value: fmt(summary.quarters[summary.quarters.length - 1]?.item51 || 0), color: "#fff" },
                               { label: "Taxable Income", value: fmt(summary.quarters[summary.quarters.length - 1]?.item53 || 0), color: summary.quarters[summary.quarters.length - 1]?.item53 < 0 ? "#fca5a5" : "#fff" },
                               { label: "Annual Tax Due", value: fmt(summary.quarters[summary.quarters.length - 1]?.item54 || 0), color: "#a5b4fc" },
-                              { label: "Total Tax Credits/Payments/Payments", value: fmt(summary.quarters[summary.quarters.length - 1]?.item62 || 0), color: "#6ee7b7" },
+                              { label: "Less: Total Tax Credits/Payments", value: fmt(summary.quarters[summary.quarters.length - 1]?.item62 || 0), color: "#6ee7b7" },
                             ].map(item => (
                               <div key={item.label}>
                                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{item.label}</p>
@@ -1018,7 +1018,7 @@ const openEdit = useCallback(async (client: any) => {
                                       { label: "Less: P250,000", prior: priorYearAITR.allowable_deduction, current: 250000 },
                                       { label: "Net Taxable Income", prior: priorYearAITR.taxable_income_loss, current: summary.quarters[summary.quarters.length-1]?.item53 || 0 },
                                       { label: "Tax Due (8%)", prior: priorYearAITR.tax_due, current: summary.quarters[summary.quarters.length-1]?.item54 || 0 },
-                                      { label: "Total Tax Credits/Payments", prior: priorYearAITR.total_credits, current: summary.quarters[summary.quarters.length-1]?.item62 || 0 },
+                                      { label: "Less: Total Tax Credits/Payments", prior: priorYearAITR.total_credits, current: summary.quarters[summary.quarters.length-1]?.item62 || 0 },
                                       { label: "Net Tax Payable/(Overpayment", prior: priorYearAITR.tax_payable_overpayment, current: summary.quarters[summary.quarters.length-1]?.item63 || 0, isResult: true },
                                     ].map((row: any) => {
                                       const change = row.current - row.prior;
