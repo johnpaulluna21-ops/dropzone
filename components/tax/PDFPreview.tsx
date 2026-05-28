@@ -4,10 +4,17 @@ import { useEffect, useState } from "react";
 
 interface PDFPreviewProps {
   uploadId: string;
+  filename?: string;
 }
 
-export function PDFPreview({ uploadId }: PDFPreviewProps) {
-  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+function isImage(filename?: string): boolean {
+  if (!filename) return false;
+  const ext = filename.split(".").pop()?.toLowerCase();
+  return ["jpg", "jpeg", "png", "gif", "webp", "svg"].includes(ext || "");
+}
+
+export function PDFPreview({ uploadId, filename }: PDFPreviewProps) {
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -15,7 +22,7 @@ export function PDFPreview({ uploadId }: PDFPreviewProps) {
     if (!uploadId) return;
     setLoading(true);
     setError(null);
-    setPdfUrl(null);
+    setFileUrl(null);
 
     fetch(`/api/file/${uploadId}`)
       .then(res => {
@@ -23,7 +30,7 @@ export function PDFPreview({ uploadId }: PDFPreviewProps) {
         return res.json();
       })
       .then(({ url }) => {
-        setPdfUrl(url);
+        setFileUrl(url);
         setLoading(false);
       })
       .catch(err => {
@@ -45,9 +52,21 @@ export function PDFPreview({ uploadId }: PDFPreviewProps) {
     </div>
   );
 
+  if (isImage(filename)) {
+    return (
+      <div style={{ width: "100%", height: "100%", overflowY: "auto", padding: 12 }}>
+        <img
+          src={fileUrl!}
+          alt={filename}
+          style={{ width: "100%", height: "auto", borderRadius: 8, display: "block" }}
+        />
+      </div>
+    );
+  }
+
   return (
     <iframe
-      src={pdfUrl!}
+      src={fileUrl!}
       style={{ width: "100%", height: "100%", border: "none", borderRadius: 8 }}
       title="PDF Preview"
     />
