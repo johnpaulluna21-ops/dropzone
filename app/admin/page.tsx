@@ -269,7 +269,7 @@ export default function AdminPage() {
         padding: "2rem 1.5rem",
         fontFamily: "'Inter', sans-serif",
       }}>
-        <div style={{ maxWidth: 1400, margin: "0 auto" }}>
+        <div style={{ maxWidth: "100%", margin: "0 auto" }}>
 
           {/* Header */}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 12, marginBottom: "1.5rem", animation: "fadeUp 0.4s ease both" }}>
