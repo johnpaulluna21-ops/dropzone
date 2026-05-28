@@ -538,7 +538,7 @@ const openEdit = useCallback(async (client: any) => {
     rows.push(["Tax Year", year]);
     rows.push(["Tax Type", summary.client.tax_type || "8%"]);
     rows.push([]);
-    rows.push(["Quarter", "2307s", "Manual Entries", "Quarterly Income", "Cumulative Income", "Taxable Income", "Tax Due (8%)", "CWT This Quarter", "Total Credits", "Tax Payable / (Overpayment)", "Payment Made"]);
+    rows.push(["Quarter", "2307s", "Manual Entries", "Quarterly Income", "Cumulative Income", "Taxable Income", "Tax Due (8%)", "CWT This Quarter", "Total Tax Credits/Payments", "Tax Payable / (Overpayment)", "Payment Made"]);
     summary.quarters.forEach((q: any) => {
       rows.push([q.quarter, q.forms, q.manualCount || 0, q.item47, q.item51, q.item53, q.item54, q.item58, q.item62, q.item63, q.paid || 0]);
     });
@@ -548,7 +548,7 @@ const openEdit = useCallback(async (client: any) => {
     rows.push(["Total Income", lastQ?.item51 || 0]);
     rows.push(["Taxable Income", lastQ?.item53 || 0]);
     rows.push(["Annual Tax Due", lastQ?.item54 || 0]);
-    rows.push(["Total Credits", lastQ?.item62 || 0]);
+    rows.push(["Total Tax Credits/Payments", lastQ?.item62 || 0]);
     const ws = XLSX.utils.aoa_to_sheet(rows);
     ws["!cols"] = [{ wch: 28 }, { wch: 10 }, { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 16 }, { wch: 14 }, { wch: 18 }, { wch: 14 }, { wch: 24 }, { wch: 14 }];
     const wb = XLSX.utils.book_new();
@@ -950,7 +950,7 @@ const openEdit = useCallback(async (client: any) => {
                                     { label: "56 · Prev Qtr Payments", value: `(${fmt(activeQ.item56)})`, color: "#6ee7b7" },
                                     { label: "57 · CWT Prev Quarters", value: `(${fmt(activeQ.item57)})`, color: "#6ee7b7" },
                                     { label: "58 · CWT This Quarter", value: `(${fmt(activeQ.item58)})`, color: "#6ee7b7" },
-                                    { label: "62 · Total Credits", value: `(${fmt(activeQ.item62)})`, color: "#6ee7b7", bold: true },
+                                    { label: "62 · Total Tax Credits/Payments", value: `(${fmt(activeQ.item62)})`, color: "#6ee7b7", bold: true },
                                   ].map(row => (
                                     <div key={row.label} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "6px 10px", background: "rgba(255,255,255,0.02)", borderRadius: 8 }}>
                                       <span style={{ fontSize: 12, color: "rgba(255,255,255,0.45)" }}>{row.label}</span>
@@ -981,7 +981,7 @@ const openEdit = useCallback(async (client: any) => {
                               { label: "Total Income", value: fmt(summary.quarters[summary.quarters.length - 1]?.item51 || 0), color: "#fff" },
                               { label: "Taxable Income", value: fmt(summary.quarters[summary.quarters.length - 1]?.item53 || 0), color: summary.quarters[summary.quarters.length - 1]?.item53 < 0 ? "#fca5a5" : "#fff" },
                               { label: "Annual Tax Due", value: fmt(summary.quarters[summary.quarters.length - 1]?.item54 || 0), color: "#a5b4fc" },
-                              { label: "Total Credits/Payments", value: fmt(summary.quarters[summary.quarters.length - 1]?.item62 || 0), color: "#6ee7b7" },
+                              { label: "Total Tax Credits/Payments/Payments", value: fmt(summary.quarters[summary.quarters.length - 1]?.item62 || 0), color: "#6ee7b7" },
                             ].map(item => (
                               <div key={item.label}>
                                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginBottom: 4 }}>{item.label}</p>
@@ -1018,8 +1018,8 @@ const openEdit = useCallback(async (client: any) => {
                                       { label: "Less: P250,000", prior: priorYearAITR.allowable_deduction, current: 250000 },
                                       { label: "Net Taxable Income", prior: priorYearAITR.taxable_income_loss, current: summary.quarters[summary.quarters.length-1]?.item53 || 0 },
                                       { label: "Tax Due (8%)", prior: priorYearAITR.tax_due, current: summary.quarters[summary.quarters.length-1]?.item54 || 0 },
-                                      { label: "Total Credits", prior: priorYearAITR.total_credits, current: summary.quarters[summary.quarters.length-1]?.item62 || 0 },
-                                      { label: "Result", prior: priorYearAITR.tax_payable_overpayment, current: summary.quarters[summary.quarters.length-1]?.item63 || 0, isResult: true },
+                                      { label: "Total Tax Credits/Payments", prior: priorYearAITR.total_credits, current: summary.quarters[summary.quarters.length-1]?.item62 || 0 },
+                                      { label: "Net Tax Payable/(Overpayment", prior: priorYearAITR.tax_payable_overpayment, current: summary.quarters[summary.quarters.length-1]?.item63 || 0, isResult: true },
                                     ].map((row: any) => {
                                       const change = row.current - row.prior;
                                       const changeColor = change === 0 ? "rgba(255,255,255,0.3)" : row.isResult ? (change < 0 ? "#6ee7b7" : "#fca5a5") : (change > 0 ? "#fcd34d" : "#6ee7b7");
