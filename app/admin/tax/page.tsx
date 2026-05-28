@@ -1014,7 +1014,7 @@ const openEdit = useCallback(async (client: any) => {
                                   </thead>
                                   <tbody>
                                     {[
-                                      { label: "Gross Income", prior: priorYearAITR.gross_income, current: summary.quarters[summary.quarters.length-1]?.item51 || 0 },
+                                      { label: "Gross Income", prior: priorYearAITR.gross_sales, current: summary.quarters[summary.quarters.length-1]?.item51 || 0 },
                                       { label: "Less: P250,000", prior: priorYearAITR.allowable_deduction, current: 250000 },
                                       { label: "Net Taxable Income", prior: priorYearAITR.taxable_income_loss, current: summary.quarters[summary.quarters.length-1]?.item53 || 0 },
                                       { label: "Tax Due (8%)", prior: priorYearAITR.tax_due, current: summary.quarters[summary.quarters.length-1]?.item54 || 0 },
