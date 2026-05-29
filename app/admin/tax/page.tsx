@@ -589,7 +589,7 @@ export default function TaxPage() {
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
         @import url('https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css');
         * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Inter', sans-serif; background: #0f0f0f; overflow: hidden; }
+        body { font-family: 'Inter', sans-serif; background: #0f0f0f; overflow-x: hidden; }
         input, select { outline: none; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); border-radius: 4px; }

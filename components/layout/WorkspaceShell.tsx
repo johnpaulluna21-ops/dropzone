@@ -19,7 +19,7 @@ export function WorkspaceShell({
 }: WorkspaceShellProps) {
   return (
     <div style={styles.shell}>
-      {/* Left Sidebar — collapses to 0 width when leftSidebarCollapsed */}
+      {/* Left Sidebar — sticky, scrolls internally */}
       <aside style={{
         ...styles.left,
         width: leftSidebarCollapsed ? 0 : '200px',
@@ -30,12 +30,12 @@ export function WorkspaceShell({
         {leftSidebar}
       </aside>
 
-      {/* Center Workspace */}
+      {/* Center — natural height, page scrolls */}
       <main style={styles.center}>
         {centerWorkspace}
       </main>
 
-      {/* Right Context Panel */}
+      {/* Right Panel — sticky, scrolls internally */}
       {rightPanel && rightPanelOpen && (
         <aside style={styles.right}>
           {rightPanel}
@@ -44,6 +44,59 @@ export function WorkspaceShell({
     </div>
   );
 }
+
+const styles: Record<string, React.CSSProperties> = {
+  shell: {
+    display: 'flex',
+    flexDirection: 'row',
+    width: '100%',
+    minHeight: '100vh',
+    backgroundColor: '#0d0d14',
+    color: '#e2e2ee',
+    fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
+    alignItems: 'flex-start',
+  },
+  left: {
+    width: '200px',
+    minWidth: '200px',
+    maxWidth: '200px',
+    height: '100vh',
+    position: 'sticky',
+    top: 0,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    backgroundColor: '#111118',
+    borderRight: '1px solid #1e1e2e',
+    display: 'flex',
+    flexDirection: 'column',
+    flexShrink: 0,
+    zIndex: 10,
+  },
+  center: {
+    flex: 1,
+    minWidth: 0,
+    backgroundColor: '#0d0d14',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  right: {
+    width: '300px',
+    minWidth: '300px',
+    maxWidth: '300px',
+    height: '100vh',
+    position: 'sticky',
+    top: 0,
+    overflowY: 'auto',
+    overflowX: 'hidden',
+    backgroundColor: '#111118',
+    borderLeft: '1px solid #1e1e2e',
+    display: 'flex',
+    flexDirection: 'column',
+    flexShrink: 0,
+    zIndex: 10,
+  },
+};
+
 
 const styles: Record<string, React.CSSProperties> = {
   shell: {

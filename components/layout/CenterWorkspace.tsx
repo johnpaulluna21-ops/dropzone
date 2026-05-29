@@ -82,16 +82,16 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     flex: 1,
-    minHeight: 0, // critical: lets flex child shrink below content size
   },
   toolbar: {
     flexShrink: 0,
     borderBottom: '1px solid #1e1e2e',
+    position: 'sticky',
+    top: 0,
+    zIndex: 9,
+    backgroundColor: '#0d0d14',
   },
   body: {
-    flex: 1,
-    minHeight: 0, // critical: without this, overflowY auto expands instead of scrolling
-    overflowY: 'auto',
     padding: '16px',
     display: 'flex',
     flexDirection: 'column',
