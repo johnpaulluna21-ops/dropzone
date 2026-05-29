@@ -49,9 +49,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
   },
   left: {
-    width: '260px',
-    minWidth: '260px',
-    maxWidth: '260px',
+    width: '280px',
+    minWidth: '280px',
+    maxWidth: '280px',
     height: '100vh',
     overflowY: 'auto',
     overflowX: 'hidden',
@@ -64,8 +64,7 @@ const styles: Record<string, React.CSSProperties> = {
   center: {
     flex: 1,
     height: '100vh',
-    overflowY: 'auto',
-    overflowX: 'hidden',
+    overflow: 'hidden',
     backgroundColor: '#0d0d14',
     display: 'flex',
     flexDirection: 'column',

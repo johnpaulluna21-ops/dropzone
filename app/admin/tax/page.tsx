@@ -750,67 +750,70 @@ export default function TaxPage() {
         centerWorkspace={
           <CenterWorkspace
             toolbar={
-              <WorkspaceToolbar
-                left={
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                      <i className="ti ti-calculator" style={{ color: "#fff", fontSize: 15 }} />
+              <>
+                <WorkspaceToolbar
+                  left={
+                    <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <i className="ti ti-calculator" style={{ color: "#fff", fontSize: 15 }} />
+                      </div>
+                      <div>
+                        <h1 style={{ fontSize: 14, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>Tax Summary Engine</h1>
+                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>BIR 1701Q — Income Tax Compliance</p>
+                      </div>
                     </div>
-                    <div>
-                      <h1 style={{ fontSize: 14, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>Tax Summary Engine</h1>
-                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>BIR 1701Q — Income Tax Compliance</p>
+                  }
+                  right={
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                        <label style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Year:</label>
+                        <select value={year} onChange={e => setYear(e.target.value)} style={{ padding: "7px 10px", background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>
+                          {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
+                        </select>
+                      </div>
+                      <Button
+                        loading={batchEmailSending}
+                        disabled={batchEmailClients.length === 0 || batchEmailSending}
+                        onClick={handleBatchSendEmail}
+                        style={{ background: batchEmailClients.length > 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${batchEmailClients.length > 0 ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`, color: batchEmailClients.length > 0 ? "#93c5fd" : "rgba(255,255,255,0.2)", fontWeight: 600 }}>
+                        {!batchEmailSending && <i className="ti ti-send" style={{ fontSize: 13 }} />}
+                        {batchEmailClients.length > 0 ? `Batch Send (${batchEmailClients.length})` : "Batch Send"}
+                      </Button>
+                      <Button variant="primary" onClick={() => openBatchModal(activeQuarter)}>
+                        <i className="ti ti-folders" style={{ fontSize: 13 }} /> Batch Generate
+                      </Button>
+                      <Button variant="success" disabled={!summary} onClick={handleExportExcel}>
+                        <i className="ti ti-table-export" style={{ fontSize: 13 }} /> Export Excel
+                      </Button>
+                      <Button variant="success" onClick={() => setShowValidator(true)}>
+                        <i className="ti ti-shield-check" style={{ fontSize: 13 }} /> Validate DAT
+                      </Button>
+                      <Link href="/admin" style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, textDecoration: "none" }}>
+                        <i className="ti ti-arrow-left" style={{ fontSize: 13 }} /> Back
+                      </Link>
+                    </div>
+                  }
+                />
+                {/* BIR Deadline Banner — pinned, never scrolls */}
+                <div style={{ padding: "0 24px 12px 24px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 16px", background: bannerBg, border: `0.5px solid ${bannerBorder}`, borderRadius: 10 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                      <span style={{ fontSize: 14 }}>📅</span>
+                      <div>
+                        <p style={{ fontSize: 12, fontWeight: 600, color: bannerTextColor }}>BIR 1701Q {deadlineInfo.label} — Filing Deadline</p>
+                        <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>
+                          Due: <span style={{ color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>{deadlineDisplay}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div style={{ padding: "3px 12px", background: badgeBg, border: `0.5px solid ${bannerBorder}`, borderRadius: 20 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, color: bannerTextColor }}>{urgencyMessage}</span>
                     </div>
                   </div>
-                }
-                right={
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                      <label style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Year:</label>
-                      <select value={year} onChange={e => setYear(e.target.value)} style={{ padding: "7px 10px", background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>
-                        {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
-                      </select>
-                    </div>
-                    <Button
-                      loading={batchEmailSending}
-                      disabled={batchEmailClients.length === 0 || batchEmailSending}
-                      onClick={handleBatchSendEmail}
-                      style={{ background: batchEmailClients.length > 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${batchEmailClients.length > 0 ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`, color: batchEmailClients.length > 0 ? "#93c5fd" : "rgba(255,255,255,0.2)", fontWeight: 600 }}>
-                      {!batchEmailSending && <i className="ti ti-send" style={{ fontSize: 13 }} />}
-                      {batchEmailClients.length > 0 ? `Batch Send (${batchEmailClients.length})` : "Batch Send"}
-                    </Button>
-                    <Button variant="primary" onClick={() => openBatchModal(activeQuarter)}>
-                      <i className="ti ti-folders" style={{ fontSize: 13 }} /> Batch Generate
-                    </Button>
-                    <Button variant="success" disabled={!summary} onClick={handleExportExcel}>
-                      <i className="ti ti-table-export" style={{ fontSize: 13 }} /> Export Excel
-                    </Button>
-                    <Button variant="success" onClick={() => setShowValidator(true)}>
-                      <i className="ti ti-shield-check" style={{ fontSize: 13 }} /> Validate DAT
-                    </Button>
-                    <Link href="/admin" style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, textDecoration: "none" }}>
-                      <i className="ti ti-arrow-left" style={{ fontSize: 13 }} /> Back
-                    </Link>
-                  </div>
-                }
-              />
+                </div>
+              </>
             }
           >
-
-            {/* BIR Deadline Banner */}
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 18px", background: bannerBg, border: `0.5px solid ${bannerBorder}`, borderRadius: 14, flexShrink: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span style={{ fontSize: 16 }}>📅</span>
-                <div>
-                  <p style={{ fontSize: 13, fontWeight: 600, color: bannerTextColor }}>BIR 1701Q {deadlineInfo.label} — Filing Deadline</p>
-                  <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
-                    Due: <span style={{ color: "rgba(255,255,255,0.6)", fontWeight: 500 }}>{deadlineDisplay}</span>
-                  </p>
-                </div>
-              </div>
-              <div style={{ padding: "5px 14px", background: badgeBg, border: `0.5px solid ${bannerBorder}`, borderRadius: 20 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: bannerTextColor }}>{urgencyMessage}</span>
-              </div>
-            </div>
 
             {/* Summary area */}
             {loading ? (
