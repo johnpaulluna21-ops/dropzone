@@ -659,10 +659,6 @@ export default function TaxPage() {
       {/* ── Three-Panel Workspace ─────────────────────────────── */}
       <WorkspaceShell
         rightPanelOpen={drawerOpen}
-
-        {/* ════════════════════════════════════════════════════
-            LEFT SIDEBAR — Client list
-        ════════════════════════════════════════════════════ */}
         leftSidebar={
           <LeftSidebar>
 
@@ -751,9 +747,6 @@ export default function TaxPage() {
           </LeftSidebar>
         }
 
-        {/* ════════════════════════════════════════════════════
-            CENTER WORKSPACE — Tax summary
-        ════════════════════════════════════════════════════ */}
         centerWorkspace={
           <CenterWorkspace
             toolbar={
@@ -1125,10 +1118,6 @@ export default function TaxPage() {
           </CenterWorkspace>
         }
 
-        {/* ════════════════════════════════════════════════════
-            RIGHT CONTEXT PANEL — Edit client
-            (replaces the fixed slide-out drawer)
-        ════════════════════════════════════════════════════ */}
         rightPanel={
           <RightContextPanel
             title="Edit Client"
