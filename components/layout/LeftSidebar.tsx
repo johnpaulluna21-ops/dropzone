@@ -17,26 +17,26 @@ export function LeftSidebar({
 }: LeftSidebarProps) {
   return (
     <div style={styles.container}>
-      {/* Sidebar Header */}
+      {/* Header slot — no internal padding, content controls its own */}
       {header && (
         <div style={styles.header}>
           {header}
         </div>
       )}
 
-      {/* Search Slot */}
+      {/* Search slot — no internal padding */}
       {searchSlot && (
         <div style={styles.searchArea}>
           {searchSlot}
         </div>
       )}
 
-      {/* Scrollable List */}
+      {/* Scrollable list area */}
       <div style={styles.listArea}>
         {children}
       </div>
 
-      {/* Footer (e.g. user info, settings link) */}
+      {/* Footer slot — no internal padding */}
       {footer && (
         <div style={styles.footer}>
           {footer}
@@ -48,6 +48,7 @@ export function LeftSidebar({
 
 // ─────────────────────────────────────────────
 // Sub-components for sidebar items
+// (used when building custom client lists)
 // ─────────────────────────────────────────────
 
 interface SidebarSectionProps {
@@ -106,28 +107,27 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
+    flex: 1,
+    minHeight: 0,
+    overflow: 'hidden',
   },
   header: {
-    padding: '16px 16px 12px 16px',
-    borderBottom: '1px solid #1e1e2e',
     flexShrink: 0,
+    // No padding — header content owns its own padding and borders
   },
   searchArea: {
-    padding: '10px 12px',
-    borderBottom: '1px solid #1e1e2e',
     flexShrink: 0,
+    // No padding — search content owns its own padding and borders
   },
   listArea: {
     flex: 1,
+    minHeight: 0,
     overflowY: 'auto',
     overflowX: 'hidden',
-    padding: '8px 0',
   },
   footer: {
-    padding: '12px 16px',
-    borderTop: '1px solid #1e1e2e',
     flexShrink: 0,
+    // No padding — footer content owns its own padding and borders
   },
 };
 
@@ -154,7 +154,6 @@ const itemStyles: Record<string, React.CSSProperties> = {
     justifyContent: 'space-between',
     padding: '8px 16px',
     cursor: 'pointer',
-    borderRadius: '0',
     transition: 'background 0.1s ease',
     gap: '8px',
     userSelect: 'none',

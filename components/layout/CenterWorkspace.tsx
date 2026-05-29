@@ -81,7 +81,8 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
+    flex: 1,
+    minHeight: 0, // critical: lets flex child shrink below content size
   },
   toolbar: {
     flexShrink: 0,
@@ -89,6 +90,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   body: {
     flex: 1,
+    minHeight: 0, // critical: without this, overflowY auto expands instead of scrolling
     overflowY: 'auto',
     padding: '24px',
     display: 'flex',

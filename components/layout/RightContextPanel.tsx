@@ -92,7 +92,8 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     display: 'flex',
     flexDirection: 'column',
-    height: '100%',
+    flex: 1,
+    minHeight: 0,
   },
   header: {
     display: 'flex',
@@ -140,6 +141,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   body: {
     flex: 1,
+    minHeight: 0,
     overflowY: 'auto',
     padding: '16px',
     display: 'flex',
