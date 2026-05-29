@@ -45,6 +45,7 @@ import { buildBatchSAWTQueue } from "@/services/tax/buildBatchSAWTQueue";
 import { type ClientRecord } from "@/core/types/client";
 import { type BatchEmailItem } from "@/core/types/tax";
 import { fetchAnnualITR } from "@/services/tax/fetchAnnualITR"
+import { Button, Card, EmptyState } from "@/components/ui";
 
 const PAGE_SIZE = 10;
 
@@ -581,15 +582,15 @@ const openEdit = useCallback(async (client: any) => {
                 <p style={{ fontSize: 12, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{client.name}</p>
                 <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 1 }}>{client.tin || "No TIN"}</p>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); openEdit(client); }} style={{ padding: "3px 8px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: "rgba(255,255,255,0.4)", fontSize: 11, cursor: "pointer", fontFamily: "inherit", flexShrink: 0, marginLeft: 8 }}>Edit</button>
+              <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); openEdit(client); }} style={{ flexShrink: 0, marginLeft: 8 }}>Edit</Button>
             </div>
           </div>
         ))}
       {totalPages > 1 && (
         <div style={{ padding: "10px 16px", borderTop: "0.5px solid rgba(255,255,255,0.06)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-          <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: page === 1 ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: page === 1 ? "default" : "pointer", fontFamily: "inherit" }}>Prev</button>
+          <Button size="sm" variant="secondary" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>Prev</Button>
           <span style={{ fontSize: 11, color: "rgba(255,255,255,0.3)" }}>{page} / {totalPages}</span>
-          <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: "4px 10px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 6, color: page === totalPages ? "rgba(255,255,255,0.2)" : "rgba(255,255,255,0.5)", fontSize: 12, cursor: page === totalPages ? "default" : "pointer", fontFamily: "inherit" }}>Next</button>
+          <Button size="sm" variant="secondary" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next</Button>
         </div>
       )}
     </div>
@@ -690,22 +691,32 @@ const openEdit = useCallback(async (client: any) => {
                   <h1 style={{ fontSize: 18, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>Tax Summary Engine</h1>
                   <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>BIR 1701Q — Income Tax Compliance</p>
                 </div>
-                <button onClick={handleBatchSendEmail} disabled={batchEmailClients.length === 0 || batchEmailSending} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: batchEmailClients.length > 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${batchEmailClients.length > 0 ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: batchEmailClients.length > 0 ? "#93c5fd" : "rgba(255,255,255,0.2)", fontSize: 13, fontWeight: 600, cursor: batchEmailClients.length === 0 || batchEmailSending ? "default" : "pointer", fontFamily: "inherit", opacity: batchEmailSending ? 0.5 : 1 }}>
-                  <i className="ti ti-send" style={{ fontSize: 14 }} />
-                  {batchEmailClients.length > 0 ? `Batch Send to BIR (${batchEmailClients.length})` : "Batch Send to BIR"}
-                </button>
-                <button onClick={() => openBatchModal(activeQuarter)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.1)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-                  <i className="ti ti-folders" style={{ fontSize: 14 }} /> Batch Generate
-                </button>
-                <button onClick={handleExportExcel} disabled={!summary} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: summary ? "rgba(16,185,129,0.1)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${summary ? "rgba(16,185,129,0.25)" : "rgba(255,255,255,0.08)"}`, borderRadius: 10, color: summary ? "#6ee7b7" : "rgba(255,255,255,0.2)", fontSize: 13, cursor: summary ? "pointer" : "default", fontFamily: "inherit" }}>
-                  <i className="ti ti-table-export" style={{ fontSize: 14 }} /> Export Excel
-                </button>
-                <button onClick={() => setShowValidator(true)} style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.1)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, cursor: "pointer", fontFamily: "inherit" }}>
-                  <i className="ti ti-shield-check" style={{ fontSize: 14 }} /> Validate DAT
-                </button>
-                <Link href="/admin" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, textDecoration: "none" }}>
-                  <i className="ti ti-arrow-left" style={{ fontSize: 14 }} /> Back to Dashboard
-                </Link>
+                <Button
+  loading={batchEmailSending}
+  disabled={batchEmailClients.length === 0 || batchEmailSending}
+  onClick={handleBatchSendEmail}
+  style={{
+    background: batchEmailClients.length > 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)",
+    border: `0.5px solid ${batchEmailClients.length > 0 ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`,
+    color: batchEmailClients.length > 0 ? "#93c5fd" : "rgba(255,255,255,0.2)",
+    fontWeight: 600,
+  }}
+>
+  {!batchEmailSending && <i className="ti ti-send" style={{ fontSize: 14 }} />}
+  {batchEmailClients.length > 0 ? `Batch Send to BIR (${batchEmailClients.length})` : "Batch Send to BIR"}
+</Button>
+<Button variant="primary" onClick={() => openBatchModal(activeQuarter)}>
+  <i className="ti ti-folders" style={{ fontSize: 14 }} /> Batch Generate
+</Button>
+<Button variant="success" disabled={!summary} onClick={handleExportExcel}>
+  <i className="ti ti-table-export" style={{ fontSize: 14 }} /> Export Excel
+</Button>
+<Button variant="success" onClick={() => setShowValidator(true)}>
+  <i className="ti ti-shield-check" style={{ fontSize: 14 }} /> Validate DAT
+</Button>
+<Link href="/admin" style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 10, color: "rgba(255,255,255,0.5)", fontSize: 13, textDecoration: "none" }}>
+  <i className="ti ti-arrow-left" style={{ fontSize: 14 }} /> Back to Dashboard
+</Link>
               </div>
 
               <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1.5rem" }}>
@@ -718,7 +729,7 @@ const openEdit = useCallback(async (client: any) => {
               <div style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16 }}>
 
                 {/* Client Panel */}
-                <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column", alignSelf: "start" }}>
+                <Card style={{ overflow: "hidden", padding: 0, alignSelf: "start" }}>
                   <div style={{ padding: "16px", borderBottom: "0.5px solid rgba(255,255,255,0.08)", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>Clients ({clients.length})</p>
                     <div style={{ display: "flex", gap: 6 }}>
@@ -771,23 +782,22 @@ const openEdit = useCallback(async (client: any) => {
                     </div>
                   )}
                   {showList && (activeFolderTab === "8%" ? renderClientList(pagedClients8, page8, totalPages8, setPage8) : renderClientList(pagedClientsGrad, pageGrad, totalPagesGrad, setPageGrad))}
-                </div>
+                </Card>
 
                 {/* Summary Panel */}
-                <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem", overflowY: "auto" }}>
+                <Card style={{ overflowY: "auto" }}>
                   {loading ? (
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 300, color: "rgba(255,255,255,0.4)", fontSize: 13 }}>
                       <i className="ti ti-loader-2" style={{ fontSize: 20, marginRight: 8 }} /> Computing summary...
                     </div>
                   ) : summary ? (
                     summary.client.tax_type === "graduated" ? (
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: 300, gap: 12 }}>
-                        <div style={{ width: 52, height: 52, background: "rgba(251,191,36,0.08)", border: "0.5px solid rgba(251,191,36,0.2)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
-                          <i className="ti ti-clock" style={{ fontSize: 24, color: "rgba(251,191,36,0.5)" }} />
-                        </div>
-                        <p style={{ fontSize: 14, fontWeight: 600, color: "#fff" }}>{summary.client.name}</p>
-                        <p style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>Graduated IT Rate computation coming soon.</p>
-                      </div>
+                      <EmptyState
+  icon="ti-calculator"
+  title="Select a client to compute tax summary"
+  description="Choose a client from the left panel to view their quarterly breakdown"
+  style={{ height: 300 }}
+/>
                     ) : (
                       <>
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1.5rem", paddingBottom: "1rem", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}>
@@ -1068,7 +1078,7 @@ const openEdit = useCallback(async (client: any) => {
               </div>
             </div>
           </main>
-        </div>
+        </Card>
 
         {/* Edit Drawer */}
         <div style={{ position: "fixed", top: 0, right: 0, height: "100vh", width: "320px", background: "#1a1a1a", borderLeft: "0.5px solid rgba(255,255,255,0.08)", zIndex: 100, display: "flex", flexDirection: "column", transform: drawerOpen ? "translateX(0)" : "translateX(100%)", transition: "transform 0.25s ease", overflowY: "auto" }}>
