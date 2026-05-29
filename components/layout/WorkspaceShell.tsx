@@ -7,6 +7,7 @@ interface WorkspaceShellProps {
   centerWorkspace: React.ReactNode;
   rightPanel?: React.ReactNode;
   rightPanelOpen?: boolean;
+  leftSidebarCollapsed?: boolean;
 }
 
 export function WorkspaceShell({
@@ -14,11 +15,18 @@ export function WorkspaceShell({
   centerWorkspace,
   rightPanel,
   rightPanelOpen = false,
+  leftSidebarCollapsed = false,
 }: WorkspaceShellProps) {
   return (
     <div style={styles.shell}>
-      {/* Left Sidebar */}
-      <aside style={styles.left}>
+      {/* Left Sidebar — collapses to 0 width when leftSidebarCollapsed */}
+      <aside style={{
+        ...styles.left,
+        width: leftSidebarCollapsed ? 0 : '200px',
+        minWidth: leftSidebarCollapsed ? 0 : '200px',
+        borderRight: leftSidebarCollapsed ? 'none' : '1px solid #1e1e2e',
+        transition: 'width 0.2s ease, min-width 0.2s ease',
+      }}>
         {leftSidebar}
       </aside>
 
@@ -27,7 +35,7 @@ export function WorkspaceShell({
         {centerWorkspace}
       </main>
 
-      {/* Right Context Panel — only renders if content is provided and open */}
+      {/* Right Context Panel */}
       {rightPanel && rightPanelOpen && (
         <aside style={styles.right}>
           {rightPanel}

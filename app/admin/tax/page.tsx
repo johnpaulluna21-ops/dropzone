@@ -101,6 +101,7 @@ export default function TaxPage() {
   const [submissions, setSubmissions] = useState<Record<string, string>>({});
   const [priorYearAITR, setPriorYearAITR] = useState<any | null>(null);
   const [showComparison, setShowComparison] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
 
   // ── Resubmit Warning Modal State ─────────────────────────────
   const [resubmitModal, setResubmitModal] = useState<{
@@ -592,6 +593,22 @@ export default function TaxPage() {
         input, select { outline: none; }
         ::-webkit-scrollbar { width: 4px; }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 4px; }
+
+        /* Responsive grid — stacks vertically on laptop, two-column on large monitor */
+        .schedule-grid {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+        .annual-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 12px;
+        }
+        @media (min-width: 1440px) {
+          .schedule-grid { grid-template-columns: 1fr 1fr; gap: 16px; }
+          .annual-grid   { grid-template-columns: repeat(4, 1fr); }
+        }
       `}</style>
 
       {/* ── Global Modals ─────────────────────────────────────── */}
@@ -659,6 +676,7 @@ export default function TaxPage() {
       {/* ── Three-Panel Workspace ─────────────────────────────── */}
       <WorkspaceShell
         rightPanelOpen={drawerOpen}
+        leftSidebarCollapsed={sidebarCollapsed}
         leftSidebar={
           <LeftSidebar>
 
@@ -754,6 +772,13 @@ export default function TaxPage() {
                 <WorkspaceToolbar
                   left={
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                      {/* Sidebar collapse toggle */}
+                      <button
+                        onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+                        title={sidebarCollapsed ? "Show client list" : "Hide client list"}
+                        style={{ padding: "5px 7px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>
+                        <i className={`ti ti-${sidebarCollapsed ? "layout-sidebar-right" : "layout-sidebar-left-collapse"}`} style={{ fontSize: 14 }} />
+                      </button>
                       <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <i className="ti ti-calculator" style={{ color: "#fff", fontSize: 13 }} />
                       </div>
@@ -798,19 +823,21 @@ export default function TaxPage() {
                         <i className="ti ti-table-export" style={{ fontSize: 12 }} />
                         <span>Excel</span>
                       </button>
-                      {/* Validate DAT — icon only */}
+                      {/* Validate DAT — icon + label */}
                       <button
                         onClick={() => setShowValidator(true)}
                         title="Validate DAT File"
-                        style={{ padding: "5px 8px", background: "rgba(16,185,129,0.12)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 7, color: "#6ee7b7", fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center" }}>
-                        <i className="ti ti-shield-check" style={{ fontSize: 13 }} />
+                        style={{ padding: "5px 10px", background: "rgba(16,185,129,0.12)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 7, color: "#6ee7b7", fontSize: 11, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+                        <i className="ti ti-shield-check" style={{ fontSize: 12 }} />
+                        <span>Validate</span>
                       </button>
-                      {/* Back — icon only */}
+                      {/* Back — icon + label */}
                       <Link
                         href="/admin"
                         title="Back to Dashboard"
-                        style={{ padding: "5px 8px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 12, textDecoration: "none", display: "flex", alignItems: "center" }}>
-                        <i className="ti ti-arrow-left" style={{ fontSize: 13 }} />
+                        style={{ padding: "5px 10px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 11, textDecoration: "none", display: "flex", alignItems: "center", gap: 4 }}>
+                        <i className="ti ti-arrow-left" style={{ fontSize: 12 }} />
+                        <span>Back</span>
                       </Link>
                     </div>
                   }
@@ -992,7 +1019,7 @@ export default function TaxPage() {
                       )}
 
                       {/* Schedule II & III */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+                      <div className="schedule-grid">
                         <div>
                           <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 10, textTransform: "uppercase" }}>Schedule II — Income</p>
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -1045,7 +1072,7 @@ export default function TaxPage() {
                   {/* Annual Summary */}
                   <div style={{ padding: "16px", background: "rgba(99,102,241,0.06)", border: "0.5px solid rgba(99,102,241,0.2)", borderRadius: 14 }}>
                     <p style={{ fontSize: 13, fontWeight: 600, color: "#fff", marginBottom: 12 }}>Annual Summary {year}</p>
-                    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12 }}>
+                    <div className="annual-grid">
                       {[
                         { label: "Total Income", value: fmt(summary.quarters[summary.quarters.length - 1]?.item51 || 0), color: "#fff" },
                         { label: "Taxable Income", value: fmt(summary.quarters[summary.quarters.length - 1]?.item53 || 0), color: summary.quarters[summary.quarters.length - 1]?.item53 < 0 ? "#fca5a5" : "#fff" },
