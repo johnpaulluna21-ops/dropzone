@@ -5,6 +5,7 @@ import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 import Link from "next/link";
 import { PDFPreview } from "@/components/tax/PDFPreview";
+import { Button, Badge, Card, EmptyState } from "@/components/ui";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -165,10 +166,7 @@ export default function AdminPage() {
         const start = Math.min(lastIdx, idx);
         const end = Math.max(lastIdx, idx);
         const rangeIds = paginatedUploads.slice(start, end + 1).map(u => u.id);
-        setChecked(prev => {
-          const combined = new Set([...prev, ...rangeIds]);
-          return Array.from(combined);
-        });
+        setChecked(prev => Array.from(new Set([...prev, ...rangeIds])));
         return;
       }
     }
@@ -182,10 +180,7 @@ export default function AdminPage() {
     toggleCheck(upload.id, idx, e);
   };
 
-  const handleRowMouseDown = (idx: number) => {
-    setDragStart(idx);
-    setIsDragging(false);
-  };
+  const handleRowMouseDown = (idx: number) => { setDragStart(idx); setIsDragging(false); };
 
   const handleRowMouseEnter = (idx: number) => {
     if (dragStart !== null) {
@@ -194,17 +189,12 @@ export default function AdminPage() {
       const start = Math.min(dragStart, idx);
       const end = Math.max(dragStart, idx);
       const rangeIds = paginatedUploads.slice(start, end + 1).map(u => u.id);
-      setChecked(prev => {
-        const combined = new Set([...prev, ...rangeIds]);
-        return Array.from(combined);
-      });
+      setChecked(prev => Array.from(new Set([...prev, ...rangeIds])));
     }
   };
 
   const handleMouseUp = useCallback(() => {
-    setDragStart(null);
-    setDragEnd(null);
-    setIsDragging(false);
+    setDragStart(null); setDragEnd(null); setIsDragging(false);
   }, []);
 
   useEffect(() => {
@@ -225,10 +215,7 @@ export default function AdminPage() {
     } catch { return data; }
   };
 
-  const hasParseError = (data: any) => {
-    const parsed = parseExtractedData(data);
-    return parsed?.parse_error === true;
-  };
+  const hasParseError = (data: any) => parseExtractedData(data)?.parse_error === true;
 
   const filteredUploads = uploads.filter(u => {
     const matchSearch = u.file_name?.toLowerCase().includes(search.toLowerCase());
@@ -257,18 +244,19 @@ export default function AdminPage() {
         .row-selectable:hover { background: rgba(99,102,241,0.04) !important; }
       `}</style>
 
-      <main onClick={(e) => {
-        const target = e.target as HTMLElement;
-        if (!target.closest("table") && !target.closest("button")) {
-          setChecked([]);
-        }
-      }} style={{
-        minHeight: "100vh",
-        background: "#0f0f0f",
-        backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%), radial-gradient(circle at bottom right, rgba(20,184,166,0.05) 0%, transparent 40%)",
-        padding: "2rem 1.5rem",
-        fontFamily: "'Inter', sans-serif",
-      }}>
+      <main
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (!target.closest("table") && !target.closest("button")) setChecked([]);
+        }}
+        style={{
+          minHeight: "100vh",
+          background: "#0f0f0f",
+          backgroundImage: "radial-gradient(circle at top left, rgba(99,102,241,0.08) 0%, transparent 40%), radial-gradient(circle at bottom right, rgba(20,184,166,0.05) 0%, transparent 40%)",
+          padding: "2rem 1.5rem",
+          fontFamily: "'Inter', sans-serif",
+        }}
+      >
         <div style={{ maxWidth: 1800, margin: "0 auto" }}>
 
           {/* Header */}
@@ -279,7 +267,9 @@ export default function AdminPage() {
               </div>
               <div>
                 <h1 style={{ fontSize: 18, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>Admin Dashboard</h1>
-                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>{uploads.length} documents · {uploads.filter(u => u.status === "extracted").length} extracted</p>
+                <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginTop: 2 }}>
+                  {uploads.length} documents · {uploads.filter(u => u.status === "extracted").length} extracted
+                </p>
               </div>
             </div>
 
@@ -288,59 +278,32 @@ export default function AdminPage() {
                 <i className="ti ti-calculator" style={{ fontSize: 14 }} /> Tax Summary
               </Link>
 
-              {/* Export All */}
-              <button
-                onClick={handleExportAll}
-                disabled={exporting}
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.15)", border: "0.5px solid rgba(16,185,129,0.3)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: exporting ? 0.6 : 1 }}
-              >
-                <i className={exporting ? "ti ti-loader-2" : "ti ti-table-export"} style={{ fontSize: 14, animation: exporting ? "spin 0.8s linear infinite" : "none" }} />
+              <Button variant="success" loading={exporting} onClick={handleExportAll}>
+                {!exporting && <i className="ti ti-table-export" style={{ fontSize: 14 }} />}
                 {exporting ? "Exporting..." : "Export All"}
-              </button>
+              </Button>
 
               {checked.length > 0 && (
                 <>
-                  {/* Extract Pending */}
-                  <button
-                    onClick={handleExtractSelected}
-                    disabled={bulkExtracting}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 10, color: "#a5b4fc", fontSize: 13, fontWeight: 500, cursor: bulkExtracting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: bulkExtracting ? 0.6 : 1 }}
-                  >
-                    <i className={bulkExtracting ? "ti ti-loader-2" : "ti ti-sparkles"} style={{ fontSize: 14, animation: bulkExtracting ? "spin 0.8s linear infinite" : "none" }} />
+                  <Button variant="primary" loading={bulkExtracting} onClick={handleExtractSelected}>
+                    {!bulkExtracting && <i className="ti ti-sparkles" style={{ fontSize: 14 }} />}
                     {bulkExtracting ? "Extracting..." : `Extract ${pendingCount} pending`}
-                  </button>
+                  </Button>
 
-                  {/* Force Re-run with live counter */}
-                  <button
-                    onClick={handleForceRerunSelected}
-                    disabled={bulkExtracting}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(245,158,11,0.15)", border: "0.5px solid rgba(245,158,11,0.3)", borderRadius: 10, color: "#fcd34d", fontSize: 13, fontWeight: 500, cursor: bulkExtracting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: bulkExtracting ? 0.6 : 1 }}
-                  >
-                    <i className={bulkExtracting ? "ti ti-loader-2" : "ti ti-refresh"} style={{ fontSize: 14, animation: bulkExtracting ? "spin 0.8s linear infinite" : "none" }} />
-                    {rerunProgress
-                      ? `Re-running ${rerunProgress.current}/${rerunProgress.total}`
-                      : `Force Re-run ${checked.length}`}
-                  </button>
+                  <Button variant="warning" loading={bulkExtracting} onClick={handleForceRerunSelected}>
+                    {!bulkExtracting && <i className="ti ti-refresh" style={{ fontSize: 14 }} />}
+                    {rerunProgress ? `Re-running ${rerunProgress.current}/${rerunProgress.total}` : `Force Re-run ${checked.length}`}
+                  </Button>
 
-                  {/* Export Selected */}
-                  <button
-                    onClick={handleExportSelected}
-                    disabled={exporting}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(16,185,129,0.10)", border: "0.5px solid rgba(16,185,129,0.2)", borderRadius: 10, color: "#6ee7b7", fontSize: 13, fontWeight: 500, cursor: exporting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: exporting ? 0.6 : 1 }}
-                  >
-                    <i className={exporting ? "ti ti-loader-2" : "ti ti-download"} style={{ fontSize: 14, animation: exporting ? "spin 0.8s linear infinite" : "none" }} />
+                  <Button variant="success" loading={exporting} onClick={handleExportSelected}>
+                    {!exporting && <i className="ti ti-download" style={{ fontSize: 14 }} />}
                     {exporting ? "Exporting..." : `Export ${checked.length}`}
-                  </button>
+                  </Button>
 
-                  {/* Delete */}
-                  <button
-                    onClick={handleDelete}
-                    disabled={deleting}
-                    style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", background: "rgba(239,68,68,0.12)", border: "0.5px solid rgba(239,68,68,0.25)", borderRadius: 10, color: "#fca5a5", fontSize: 13, fontWeight: 500, cursor: deleting ? "not-allowed" : "pointer", fontFamily: "inherit", opacity: deleting ? 0.6 : 1 }}
-                  >
-                    <i className={deleting ? "ti ti-loader-2" : "ti ti-trash"} style={{ fontSize: 14, animation: deleting ? "spin 0.8s linear infinite" : "none" }} />
+                  <Button variant="danger" loading={deleting} onClick={handleDelete}>
+                    {!deleting && <i className="ti ti-trash" style={{ fontSize: 14 }} />}
                     {deleting ? "Deleting..." : `Delete ${checked.length}`}
-                  </button>
+                  </Button>
                 </>
               )}
             </div>
@@ -380,7 +343,7 @@ export default function AdminPage() {
           <div style={{ display: "grid", gridTemplateColumns: "2fr 3fr", gap: 16, animation: "fadeUp 0.4s 0.1s ease both" }}>
 
             {/* Table */}
-            <div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+            <Card style={{ overflow: "hidden", padding: 0 }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
                   <tr style={{ background: "rgba(255,255,255,0.03)", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}>
@@ -425,36 +388,34 @@ export default function AdminPage() {
                         <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>{(upload.file_size / 1024).toFixed(1)} KB</p>
                       </td>
                       <td style={{ padding: "12px 16px" }}>
-                        <span style={{
-                          padding: "4px 10px", borderRadius: 20, fontSize: 11, fontWeight: 600,
-                          background: upload.status === "extracted" ? "rgba(16,185,129,0.15)" : "rgba(245,158,11,0.15)",
-                          color: upload.status === "extracted" ? "#6ee7b7" : "#fcd34d",
-                          border: `0.5px solid ${upload.status === "extracted" ? "rgba(16,185,129,0.25)" : "rgba(245,158,11,0.25)"}`,
-                        }}>
-                          {upload.status}
-                        </span>
+                        <Badge
+                          label={upload.status}
+                          variant={upload.status === "extracted" ? "success" : "warning"}
+                        />
                       </td>
                       <td style={{ padding: "12px 16px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                           {upload.extracted_data && (
-                            <button onClick={(e) => { e.stopPropagation(); setSelected(upload); }} style={{ padding: "5px 12px", background: "rgba(99,102,241,0.2)", border: "0.5px solid rgba(99,102,241,0.35)", borderRadius: 8, color: "#a5b4fc", fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit" }}>
+                            <Button
+                              size="sm"
+                              variant="primary"
+                              onClick={(e) => { e.stopPropagation(); setSelected(upload); }}
+                            >
                               View
-                            </button>
+                            </Button>
                           )}
-                          <button onClick={(e) => { e.stopPropagation(); handleExtract(upload); }} disabled={extracting === upload.id} style={{
-                            padding: "5px 12px", borderRadius: 8, fontSize: 12, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
-                            opacity: extracting === upload.id ? 0.5 : 1,
-                            background: upload.extracted_data ? hasParseError(upload.extracted_data) ? "rgba(239,68,68,0.15)" : "rgba(255,255,255,0.06)" : "rgba(99,102,241,0.2)",
-                            border: upload.extracted_data ? hasParseError(upload.extracted_data) ? "0.5px solid rgba(239,68,68,0.3)" : "0.5px solid rgba(255,255,255,0.1)" : "0.5px solid rgba(99,102,241,0.35)",
-                            color: upload.extracted_data ? hasParseError(upload.extracted_data) ? "#fca5a5" : "rgba(255,255,255,0.5)" : "#a5b4fc",
-                          }}>
-                            {extracting === upload.id ? (
-                              <span style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                                <i className="ti ti-loader-2" style={{ fontSize: 12, animation: "spin 0.8s linear infinite" }} />
-                                ...
-                              </span>
-                            ) : upload.extracted_data ? "Re-run" : "Extract"}
-                          </button>
+                          <Button
+                            size="sm"
+                            variant={
+                              upload.extracted_data
+                                ? hasParseError(upload.extracted_data) ? "danger" : "secondary"
+                                : "primary"
+                            }
+                            loading={extracting === upload.id}
+                            onClick={(e) => { e.stopPropagation(); handleExtract(upload); }}
+                          >
+                            {upload.extracted_data ? "Re-run" : "Extract"}
+                          </Button>
                         </div>
                       </td>
                     </tr>
@@ -468,73 +429,65 @@ export default function AdminPage() {
                   <p style={{ fontSize: 12, color: "rgba(255,255,255,0.3)" }}>
                     Showing {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filteredUploads.length)} of {filteredUploads.length}
                   </p>
-                  <div style={{ display: "flex", gap: 6 }}>
-                    <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} style={{ padding: "5px 12px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", opacity: page === 1 ? 0.4 : 1 }}>
-                      ← Prev
-                    </button>
+                  <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+                    <Button size="sm" variant="secondary" disabled={page === 1} onClick={() => setPage(p => Math.max(1, p - 1))}>← Prev</Button>
                     <span style={{ padding: "5px 12px", fontSize: 12, color: "rgba(255,255,255,0.4)" }}>{page} / {totalPages}</span>
-                    <button onClick={() => setPage(p => Math.min(totalPages, p + 1))} disabled={page === totalPages} style={{ padding: "5px 12px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", fontFamily: "inherit", opacity: page === totalPages ? 0.4 : 1 }}>
-                      Next →
-                    </button>
+                    <Button size="sm" variant="secondary" disabled={page === totalPages} onClick={() => setPage(p => Math.min(totalPages, p + 1))}>Next →</Button>
                   </div>
                 </div>
               )}
-            </div>
+            </Card>
 
             {/* Preview Panel */}
-<div style={{ background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 20, padding: "1.5rem", display: "flex", flexDirection: "column" }}>
-  {selected ? (
-    <>
-      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1rem", paddingBottom: "1rem", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}>
-        <div style={{ width: 32, height: 32, background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <i className="ti ti-file-text" style={{ fontSize: 16, color: "#a5b4fc" }} />
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <p style={{ fontSize: 13, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selected.file_name}</p>
-          <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Extracted data</p>
-        </div>
-        <button onClick={() => setSelected(null)} style={{ background: "none", border: "none", color: "rgba(255,255,255,0.3)", cursor: "pointer", fontSize: 18 }}>×</button>
-      </div>
+            <Card>
+              {selected ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "1rem", paddingBottom: "1rem", borderBottom: "0.5px solid rgba(255,255,255,0.08)" }}>
+                    <div style={{ width: 32, height: 32, background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.25)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <i className="ti ti-file-text" style={{ fontSize: 16, color: "#a5b4fc" }} />
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <p style={{ fontSize: 13, fontWeight: 500, color: "#fff", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{selected.file_name}</p>
+                      <p style={{ fontSize: 11, color: "rgba(255,255,255,0.3)", marginTop: 2 }}>Extracted data</p>
+                    </div>
+                    <Button variant="ghost" onClick={() => setSelected(null)} style={{ fontSize: 18, padding: "0 6px" }}>×</Button>
+                  </div>
 
-      {/* Tabs */}
-      <div style={{ display: "flex", gap: 6, marginBottom: "1rem" }}>
-        {(["extracted", "document"] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setPreviewTab(tab)}
-            style={{
-              padding: "6px 14px", borderRadius: 8, fontSize: 12, fontWeight: 500,
-              cursor: "pointer", fontFamily: "inherit", border: "0.5px solid",
-              background: previewTab === tab ? "rgba(99,102,241,0.2)" : "transparent",
-              borderColor: previewTab === tab ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)",
-              color: previewTab === tab ? "#a5b4fc" : "rgba(255,255,255,0.4)",
-            }}
-          >
-            {tab === "extracted" ? "Extracted Data" : "Document"}
-          </button>
-        ))}
-      </div>
+                  {/* Tabs */}
+                  <div style={{ display: "flex", gap: 6, marginBottom: "1rem" }}>
+                    {(["extracted", "document"] as const).map(tab => (
+                      <Button
+                        key={tab}
+                        size="sm"
+                        variant={previewTab === tab ? "primary" : "ghost"}
+                        onClick={() => setPreviewTab(tab)}
+                        style={{ border: "0.5px solid", borderColor: previewTab === tab ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)" }}
+                      >
+                        {tab === "extracted" ? "Extracted Data" : "Document"}
+                      </Button>
+                    ))}
+                  </div>
 
-      {/* Tab Content */}
-      <div style={{ flex: 1, overflow: "hidden" }}>
-        {previewTab === "extracted" ? (
-          <pre style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "1rem", overflow: "auto", height: "100%", lineHeight: 1.7, fontFamily: "monospace" }}>
-            {JSON.stringify(parseExtractedData(selected.extracted_data), null, 2)}
-          </pre>
-        ) : (
-          <PDFPreview uploadId={selected.id} filename={selected.file_name} />
-        )}
-      </div>
-    </>
-  ) : (
-    <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 12 }}>
-      <div style={{ width: 52, height: 52, background: "rgba(255,255,255,0.04)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>
-        <i className="ti ti-file-search" style={{ fontSize: 24, color: "rgba(255,255,255,0.2)" }} />
-      </div>
-      <p style={{ fontSize: 13, color: "rgba(255,255,255,0.25)", textAlign: "center" }}>Select a document to preview extracted data</p>
-    </div>
-  )}
-</div>
+                  {/* Tab Content */}
+                  <div style={{ flex: 1, overflow: "hidden" }}>
+                    {previewTab === "extracted" ? (
+                      <pre style={{ fontSize: 12, color: "rgba(255,255,255,0.7)", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.06)", borderRadius: 12, padding: "1rem", overflow: "auto", height: "100%", lineHeight: 1.7, fontFamily: "monospace" }}>
+                        {JSON.stringify(parseExtractedData(selected.extracted_data), null, 2)}
+                      </pre>
+                    ) : (
+                      <PDFPreview uploadId={selected.id} filename={selected.file_name} />
+                    )}
+                  </div>
+                </>
+              ) : (
+                <EmptyState
+                  icon="ti-file-search"
+                  title="Select a document"
+                  description="Click any file to preview its extracted data"
+                />
+              )}
+            </Card>
+
           </div>
         </div>
       </main>

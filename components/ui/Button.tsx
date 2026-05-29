@@ -1,6 +1,6 @@
 import { CSSProperties, ReactNode } from "react";
 
-type ButtonVariant = "primary" | "secondary" | "danger" | "warning" | "ghost";
+type ButtonVariant = "primary" | "secondary" | "danger" | "warning" | "success" | "ghost";
 type ButtonSize = "sm" | "md";
 
 interface ButtonProps {
@@ -35,6 +35,11 @@ const VARIANTS: Record<ButtonVariant, CSSProperties> = {
     border: "0.5px solid rgba(245,158,11,0.3)",
     color: "#fcd34d",
   },
+  success: {
+  background: "rgba(16,185,129,0.15)",
+  border: "0.5px solid rgba(16,185,129,0.3)",
+  color: "#6ee7b7",
+},
   ghost: {
     background: "none",
     border: "none",
