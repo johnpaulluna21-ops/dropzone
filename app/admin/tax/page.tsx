@@ -793,10 +793,10 @@ const openEdit = useCallback(async (client: any) => {
                   ) : summary ? (
                     summary.client.tax_type === "graduated" ? (
                       <EmptyState
-  icon="ti-calculator"
-  title="Select a client to compute tax summary"
-  description="Choose a client from the left panel to view their quarterly breakdown"
-  style={{ height: 300 }}
+                          icon="ti-calculator"
+                          title="Select a client to compute tax summary"
+                          description="Choose a client from the left panel to view their quarterly breakdown"
+                          style={{ height: 300 }}
 />
                     ) : (
                       <>
@@ -1074,11 +1074,10 @@ const openEdit = useCallback(async (client: any) => {
                       <p style={{ fontSize: 13, color: "rgba(255,255,255,0.25)" }}>Select a client to compute tax summary</p>
                     </div>
                   )}
-                </div>
+                </Card>
               </div>
             </div>
           </main>
-        </Card>
 
         {/* Edit Drawer */}
         <div style={{ position: "fixed", top: 0, right: 0, height: "100vh", width: "320px", background: "#1a1a1a", borderLeft: "0.5px solid rgba(255,255,255,0.08)", zIndex: 100, display: "flex", flexDirection: "column", transform: drawerOpen ? "translateX(0)" : "translateX(100%)", transition: "transform 0.25s ease", overflowY: "auto" }}>
