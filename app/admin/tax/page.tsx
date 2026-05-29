@@ -1121,6 +1121,7 @@ const openEdit = useCallback(async (client: any) => {
           </div>
         </div>
       </div>
+</div>
     </>
   );
 }
