@@ -92,10 +92,10 @@ const styles: Record<string, React.CSSProperties> = {
     flex: 1,
     minHeight: 0, // critical: without this, overflowY auto expands instead of scrolling
     overflowY: 'auto',
-    padding: '24px',
+    padding: '16px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px',
+    gap: '16px',
   },
 };
 

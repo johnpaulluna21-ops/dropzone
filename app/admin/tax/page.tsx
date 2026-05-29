@@ -898,7 +898,7 @@ export default function TaxPage() {
 
                   {/* Active quarter detail */}
                   {activeQ && (
-                    <div style={{ padding: "20px", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 16 }}>
+                    <div style={{ padding: "16px", background: "rgba(255,255,255,0.03)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 16 }}>
                       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: 16, gap: 12 }}>
                         <p style={{ fontSize: 14, fontWeight: 600, color: "#fff", flexShrink: 0 }}>{activeQ.quarter} {year} — Detail</p>
                         <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end" }}>
@@ -992,7 +992,7 @@ export default function TaxPage() {
                       )}
 
                       {/* Schedule II & III */}
-                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 24 }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
                         <div>
                           <p style={{ fontSize: 10, fontWeight: 600, color: "rgba(255,255,255,0.2)", letterSpacing: "0.5px", marginBottom: 10, textTransform: "uppercase" }}>Schedule II — Income</p>
                           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
