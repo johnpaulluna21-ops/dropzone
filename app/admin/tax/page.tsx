@@ -801,14 +801,13 @@ export default function TaxPage() {
                           {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                       </div>
-                      {/* Batch Send — icon + count only */}
+                      {/* Batch Send — always shows label */}
                       <button
                         onClick={handleBatchSendEmail}
                         disabled={batchEmailClients.length === 0 || batchEmailSending}
                         title="Batch Send to BIR"
                         style={{ padding: "5px 10px", background: batchEmailClients.length > 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${batchEmailClients.length > 0 ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 7, color: batchEmailClients.length > 0 ? "#93c5fd" : "rgba(255,255,255,0.2)", fontSize: 11, cursor: batchEmailClients.length === 0 ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
-                        <i className="ti ti-send" style={{ fontSize: 12 }} />
-                        {batchEmailClients.length > 0 && <span>{batchEmailClients.length}</span>}
+                        ⇥ {batchEmailClients.length > 0 ? `Batch Send (${batchEmailClients.length})` : "Batch Send"}
                       </button>
                       {/* Batch Generate */}
                       <button
