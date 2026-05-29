@@ -690,8 +690,9 @@ export default function TaxPage() {
               <div style={{ display: "flex", gap: 6 }}>
                 <button
                   onClick={() => { setListOpen(!listOpen); setSearch(""); }}
-                  style={{ padding: "5px 10px", background: listOpen ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.06)", border: `0.5px solid ${listOpen ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.1)"}`, borderRadius: 8, color: listOpen ? "#a5b4fc" : "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
-                  <i className="ti ti-list" style={{ fontSize: 13 }} />
+                  title="Toggle client list"
+                  style={{ padding: "5px 9px", background: listOpen ? "rgba(99,102,241,0.3)" : "rgba(255,255,255,0.06)", border: `0.5px solid ${listOpen ? "rgba(99,102,241,0.5)" : "rgba(255,255,255,0.1)"}`, borderRadius: 8, color: listOpen ? "#a5b4fc" : "rgba(255,255,255,0.4)", fontSize: 13, cursor: "pointer", fontFamily: "inherit", lineHeight: 1 }}>
+                  ≡
                 </button>
                 <button
                   onClick={() => setShowAddClient(!showAddClient)}
@@ -779,8 +780,8 @@ export default function TaxPage() {
                       <button
                         onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
                         title={sidebarCollapsed ? "Show client list" : "Hide client list"}
-                        style={{ padding: "5px 7px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0 }}>
-                        <i className={`ti ti-${sidebarCollapsed ? "layout-sidebar-right" : "layout-sidebar-left-collapse"}`} style={{ fontSize: 14 }} />
+                        style={{ padding: "5px 9px", background: "rgba(255,255,255,0.06)", border: "0.5px solid rgba(255,255,255,0.1)", borderRadius: 7, color: "rgba(255,255,255,0.5)", fontSize: 12, cursor: "pointer", display: "flex", alignItems: "center", flexShrink: 0, fontFamily: "inherit" }}>
+                        {sidebarCollapsed ? "›" : "‹"}
                       </button>
                       <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
                         <i className="ti ti-calculator" style={{ color: "#fff", fontSize: 13 }} />
