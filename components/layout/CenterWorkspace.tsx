@@ -128,9 +128,9 @@ const toolbarStyles: Record<string, React.CSSProperties> = {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '12px 24px',
-    minHeight: '52px',
-    gap: '16px',
+    padding: '10px 16px',
+    minHeight: '48px',
+    gap: '12px',
   },
   left: {
     display: 'flex',

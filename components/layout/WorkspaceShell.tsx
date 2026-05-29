@@ -49,9 +49,9 @@ const styles: Record<string, React.CSSProperties> = {
     fontFamily: "'Inter', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif",
   },
   left: {
-    width: '280px',
-    minWidth: '280px',
-    maxWidth: '280px',
+    width: '240px',
+    minWidth: '240px',
+    maxWidth: '240px',
     height: '100vh',
     overflowY: 'auto',
     overflowX: 'hidden',

@@ -754,42 +754,63 @@ export default function TaxPage() {
                 <WorkspaceToolbar
                   left={
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                      <div style={{ width: 32, height: 32, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
-                        <i className="ti ti-calculator" style={{ color: "#fff", fontSize: 15 }} />
+                      <div style={{ width: 28, height: 28, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                        <i className="ti ti-calculator" style={{ color: "#fff", fontSize: 13 }} />
                       </div>
                       <div>
-                        <h1 style={{ fontSize: 14, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>Tax Summary Engine</h1>
-                        <p style={{ fontSize: 11, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>BIR 1701Q — Income Tax Compliance</p>
+                        <h1 style={{ fontSize: 13, fontWeight: 600, color: "#fff", letterSpacing: "-0.3px" }}>Tax Summary Engine</h1>
+                        <p style={{ fontSize: 10, color: "rgba(255,255,255,0.35)", marginTop: 1 }}>BIR 1701Q — Income Tax Compliance</p>
                       </div>
                     </div>
                   }
                   right={
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-                        <label style={{ fontSize: 12, color: "rgba(255,255,255,0.4)" }}>Year:</label>
-                        <select value={year} onChange={e => setYear(e.target.value)} style={{ padding: "7px 10px", background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "#fff", fontSize: 12, fontFamily: "inherit", cursor: "pointer" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}>
+                      {/* Year selector */}
+                      <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                        <label style={{ fontSize: 11, color: "rgba(255,255,255,0.4)" }}>Year:</label>
+                        <select value={year} onChange={e => setYear(e.target.value)} style={{ padding: "5px 8px", background: "#1a1a1a", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "#fff", fontSize: 11, fontFamily: "inherit", cursor: "pointer" }}>
                           {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}</option>)}
                         </select>
                       </div>
-                      <Button
-                        loading={batchEmailSending}
-                        disabled={batchEmailClients.length === 0 || batchEmailSending}
+                      {/* Batch Send — icon + count only */}
+                      <button
                         onClick={handleBatchSendEmail}
-                        style={{ background: batchEmailClients.length > 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${batchEmailClients.length > 0 ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`, color: batchEmailClients.length > 0 ? "#93c5fd" : "rgba(255,255,255,0.2)", fontWeight: 600 }}>
-                        {!batchEmailSending && <i className="ti ti-send" style={{ fontSize: 13 }} />}
-                        {batchEmailClients.length > 0 ? `Batch Send (${batchEmailClients.length})` : "Batch Send"}
-                      </Button>
-                      <Button variant="primary" onClick={() => openBatchModal(activeQuarter)}>
-                        <i className="ti ti-folders" style={{ fontSize: 13 }} /> Batch Generate
-                      </Button>
-                      <Button variant="success" disabled={!summary} onClick={handleExportExcel}>
-                        <i className="ti ti-table-export" style={{ fontSize: 13 }} /> Export Excel
-                      </Button>
-                      <Button variant="success" onClick={() => setShowValidator(true)}>
-                        <i className="ti ti-shield-check" style={{ fontSize: 13 }} /> Validate DAT
-                      </Button>
-                      <Link href="/admin" style={{ display: "flex", alignItems: "center", gap: 5, padding: "7px 12px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 8, color: "rgba(255,255,255,0.5)", fontSize: 12, textDecoration: "none" }}>
-                        <i className="ti ti-arrow-left" style={{ fontSize: 13 }} /> Back
+                        disabled={batchEmailClients.length === 0 || batchEmailSending}
+                        title="Batch Send to BIR"
+                        style={{ padding: "5px 10px", background: batchEmailClients.length > 0 ? "rgba(59,130,246,0.15)" : "rgba(255,255,255,0.04)", border: `0.5px solid ${batchEmailClients.length > 0 ? "rgba(59,130,246,0.4)" : "rgba(255,255,255,0.08)"}`, borderRadius: 7, color: batchEmailClients.length > 0 ? "#93c5fd" : "rgba(255,255,255,0.2)", fontSize: 11, cursor: batchEmailClients.length === 0 ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+                        <i className="ti ti-send" style={{ fontSize: 12 }} />
+                        {batchEmailClients.length > 0 && <span>{batchEmailClients.length}</span>}
+                      </button>
+                      {/* Batch Generate */}
+                      <button
+                        onClick={() => openBatchModal(activeQuarter)}
+                        title="Batch Generate SAWT"
+                        style={{ padding: "5px 10px", background: "rgba(99,102,241,0.15)", border: "0.5px solid rgba(99,102,241,0.3)", borderRadius: 7, color: "#a5b4fc", fontSize: 11, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4 }}>
+                        <i className="ti ti-folders" style={{ fontSize: 12 }} />
+                        <span>Generate</span>
+                      </button>
+                      {/* Export Excel */}
+                      <button
+                        onClick={handleExportExcel}
+                        disabled={!summary}
+                        title="Export to Excel"
+                        style={{ padding: "5px 10px", background: "rgba(16,185,129,0.12)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 7, color: "#6ee7b7", fontSize: 11, cursor: !summary ? "default" : "pointer", fontFamily: "inherit", display: "flex", alignItems: "center", gap: 4, opacity: !summary ? 0.4 : 1 }}>
+                        <i className="ti ti-table-export" style={{ fontSize: 12 }} />
+                        <span>Excel</span>
+                      </button>
+                      {/* Validate DAT — icon only */}
+                      <button
+                        onClick={() => setShowValidator(true)}
+                        title="Validate DAT File"
+                        style={{ padding: "5px 8px", background: "rgba(16,185,129,0.12)", border: "0.5px solid rgba(16,185,129,0.25)", borderRadius: 7, color: "#6ee7b7", fontSize: 12, cursor: "pointer", fontFamily: "inherit", display: "flex", alignItems: "center" }}>
+                        <i className="ti ti-shield-check" style={{ fontSize: 13 }} />
+                      </button>
+                      {/* Back — icon only */}
+                      <Link
+                        href="/admin"
+                        title="Back to Dashboard"
+                        style={{ padding: "5px 8px", background: "rgba(255,255,255,0.05)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 7, color: "rgba(255,255,255,0.4)", fontSize: 12, textDecoration: "none", display: "flex", alignItems: "center" }}>
+                        <i className="ti ti-arrow-left" style={{ fontSize: 13 }} />
                       </Link>
                     </div>
                   }
