@@ -3,13 +3,10 @@
 // Problem: writes extracted 1701A data to annual_itr_records table
 // Called by: app/api/extract/route.ts after successful 1701A extraction
 
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/lib/supabase/client"
+const supabase = createClient()
 import type { AnnualITRRecord } from "@/core/schemas/annual-itr"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export async function saveAnnualITR(record: AnnualITRRecord): Promise<{ id: string } | null> {
   // Check if a record already exists for this client + year

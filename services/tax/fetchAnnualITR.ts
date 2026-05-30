@@ -3,13 +3,10 @@
 // Problem: retrieves annual ITR record for a given client and year
 // Called by: components/tax/AnnualITRComparison.tsx
 
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/lib/supabase/client"
+const supabase = createClient()
 import type { AnnualITRRecord } from "@/core/schemas/annual-itr"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 export async function fetchAnnualITR(
   client_id: string,

@@ -4,13 +4,10 @@
 // No tax math. No UI. No side effects beyond DB reads/writes.
 // ─────────────────────────────────────────────────────────────
 
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/lib/supabase/client"
+const supabase = createClient()
 import type { ManualIncomeEntry } from "@/modules/tax/computeQuarterlySummary"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
 
 // Fetch all manual income entries for a client in a given year
 // Returns entries grouped by quarter

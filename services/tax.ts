@@ -4,13 +4,11 @@
 // No tax math. No UI. No side effects beyond DB reads/writes.
 // ─────────────────────────────────────────────────────────────
 
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/lib/supabase/client"
+const supabase = createClient()
 import { parseExtractedData } from "@/lib/sawt"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
+
 
 export async function fetchClient2307s(clientTin: string, clientName: string) {
   const { data, error } = await supabase
