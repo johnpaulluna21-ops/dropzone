@@ -1,15 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 import { DeleteObjectCommand } from "@aws-sdk/client-s3";
 import { r2, BUCKET_NAME } from "../../../lib/r2";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { ids } = await request.json();
 
     if (!ids || ids.length === 0) {
@@ -25,7 +24,6 @@ export async function POST(request: NextRequest) {
       for (const upload of uploads) {
         const isExtracted = upload.status === "extracted";
 
-        // Always delete from R2
         try {
           await r2.send(new DeleteObjectCommand({
             Bucket: BUCKET_NAME,
@@ -36,15 +34,11 @@ export async function POST(request: NextRequest) {
         }
 
         if (isExtracted) {
-          // Soft delete - keep record for tax data
           await supabase
             .from("uploads")
-            .update({ 
-              deleted_at: new Date().toISOString()
-            })
+            .update({ deleted_at: new Date().toISOString() })
             .eq("id", upload.id);
         } else {
-          // Hard delete - no useful data to keep
           await supabase.from("uploads").delete().eq("id", upload.id);
         }
       }

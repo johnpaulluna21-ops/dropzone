@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 import { GetObjectCommand } from "@aws-sdk/client-s3";
 import { r2, BUCKET_NAME } from "../../../lib/r2";
 import sharp from "sharp";
@@ -15,10 +15,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY!,
 });
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+
 
 function cleanJson(text: string): string {
   const fenceMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/i);
@@ -189,6 +186,10 @@ async function callClaudeWithText(text: string, prompt?: string): Promise<any> {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
     const { uploadId } = await request.json();
 
     const { data: upload, error } = await supabase
@@ -336,6 +337,7 @@ export async function POST(request: NextRequest) {
               last_name: parsedName.last_name,
               first_name: parsedName.first_name,
               middle_name: parsedName.middle_name,
+              user_id: user.id,
             })
             .select("id")
             .single()
@@ -401,6 +403,7 @@ export async function POST(request: NextRequest) {
               first_name: parsedName.first_name,
               middle_name: parsedName.middle_name,
               address: extractedData.payee_address || null,
+              user_id: user.id,
             })
             .select("id")
             .single();

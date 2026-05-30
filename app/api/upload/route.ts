@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { S3Client } from "@aws-sdk/client-s3";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
 import { v4 as uuidv4 } from "uuid";
 
 const r2 = new S3Client({
@@ -13,24 +13,27 @@ const r2 = new S3Client({
   },
 });
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
-
 export async function POST(request: NextRequest) {
   try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const formData = await request.formData();
     const file = formData.get("file") as File;
     const clientId = formData.get("client_id") as string | null;
 
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
-    // Check for duplicate filename
+    // Check for duplicate filename scoped to this user
     const { data: existing } = await supabase
       .from("uploads")
       .select("id")
       .eq("file_name", file.name)
+      .eq("user_id", user.id)
       .limit(1);
 
     if (existing && existing.length > 0) {
@@ -59,6 +62,7 @@ export async function POST(request: NextRequest) {
       r2_key: r2Key,
       status: "pending",
       client_id: clientId ?? null,
+      user_id: user.id,
     });
 
     return NextResponse.json({ success: true });

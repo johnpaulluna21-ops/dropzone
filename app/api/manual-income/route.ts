@@ -1,15 +1,11 @@
-// app/api/manual-income/route.ts
-
-import { createClient } from "@supabase/supabase-js"
+import { createClient } from "@/lib/supabase/server"
 import { NextRequest, NextResponse } from "next/server"
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-)
-
-// GET /api/manual-income?client_id=xxx&quarter=1&year=2026
 export async function GET(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const client_id = searchParams.get("client_id")
   const quarter = searchParams.get("quarter")
@@ -37,21 +33,15 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ data })
 }
 
-// POST /api/manual-income
 export async function POST(req: NextRequest) {
-  const body = await req.json()
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
 
+  const body = await req.json()
   const {
-    client_id,
-    quarter,
-    year,
-    payor_name,
-    payor_tin,
-    gross_income,
-    tax_withheld,
-    atc,
-    source_type,
-    notes,
+    client_id, quarter, year, payor_name, payor_tin,
+    gross_income, tax_withheld, atc, source_type, notes,
   } = body
 
   if (!client_id || !quarter || !year || !payor_name || gross_income === undefined) {
@@ -74,6 +64,7 @@ export async function POST(req: NextRequest) {
       atc: atc || null,
       source_type: source_type || "manual_entry",
       notes: notes || null,
+      user_id: user.id,
     })
     .select()
     .single()
@@ -85,8 +76,11 @@ export async function POST(req: NextRequest) {
   return NextResponse.json({ data })
 }
 
-// DELETE /api/manual-income?id=xxx
 export async function DELETE(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+
   const { searchParams } = new URL(req.url)
   const id = searchParams.get("id")
 
