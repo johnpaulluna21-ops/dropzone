@@ -8,6 +8,12 @@ interface Raw2307Extraction {
   payor_tin: string
   gross_income: number
   tax_withheld: number
+  month_1_income?: number
+  month_2_income?: number
+  month_3_income?: number
+  month_1_tax?: number
+  month_2_tax?: number
+  month_3_tax?: number
   atc: string | null
   quarter: 1 | 2 | 3 | 4
   year: number
@@ -26,6 +32,12 @@ export function mapFrom2307(raw: Raw2307Extraction): NormalizedIncomeRecord {
     payor_tin: raw.payor_tin,
     gross_income: raw.gross_income,
     tax_withheld: raw.tax_withheld,
+    month_1_income: raw.month_1_income,
+    month_2_income: raw.month_2_income,
+    month_3_income: raw.month_3_income,
+    month_1_tax: raw.month_1_tax,
+    month_2_tax: raw.month_2_tax,
+    month_3_tax: raw.month_3_tax,
     atc: raw.atc,
     evidence_type: "BIR_2307",
     source_document_id: raw.source_document_id,
