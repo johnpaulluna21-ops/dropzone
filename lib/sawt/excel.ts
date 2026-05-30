@@ -130,6 +130,27 @@ export function generateSAWTExcel(
     { wch: 10 },  // H - TAX RATE
     { wch: 20 },  // I - AMOUNT OF TAX WITHHELD
   ];
+// ── Number formatting ──
+  const dataStartRow = 11; // row index where data rows begin (0-based)
+  const dataEndRow = dataStartRow + quarterForms.length - 1;
+
+  for (let r = dataStartRow; r <= dataEndRow; r++) {
+    // Column G (income) = index 6, Column H (rate) = index 7, Column I (tax) = index 8
+    const incomeCell = XLSX.utils.encode_cell({ r, c: 6 });
+    const rateCell = XLSX.utils.encode_cell({ r, c: 7 });
+    const taxCell = XLSX.utils.encode_cell({ r, c: 8 });
+
+    if (ws[incomeCell]) ws[incomeCell].z = "#,##0.00";
+    if (ws[rateCell]) ws[rateCell].z = "0.00";
+    if (ws[taxCell]) ws[taxCell].z = "#,##0.00";
+  }
+
+  // Grand total row formatting
+  const grandTotalRow = dataEndRow + 2;
+  const gtIncomeCell = XLSX.utils.encode_cell({ r: grandTotalRow, c: 6 });
+  const gtTaxCell = XLSX.utils.encode_cell({ r: grandTotalRow, c: 8 });
+  if (ws[gtIncomeCell]) ws[gtIncomeCell].z = "#,##0.00";
+  if (ws[gtTaxCell]) ws[gtTaxCell].z = "#,##0.00";
 
   XLSX.utils.book_append_sheet(wb, ws, "SAWT");
 
