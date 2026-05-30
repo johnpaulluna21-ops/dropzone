@@ -157,7 +157,13 @@ export default function Home() {
 
   const hasDuplicates = files.some(f => duplicates.includes(f.name));
   const selectedClient = clients.find(c => c.id === selectedClientId);
-  const canUpload = files.length > 0 && !!selectedClientId && !uploading;
+  const isTaxDocument = (filename: string) => {
+    const n = filename.toLowerCase();
+    return n.includes("2307") || n.includes("1701a") || n.includes("1701-a") || n.includes("aitr") || n.includes("annual");
+  };
+
+  const allFilesAreTaxDocs = files.length > 0 && files.every(f => isTaxDocument(f.name));
+  const canUpload = files.length > 0 && (!!selectedClientId || allFilesAreTaxDocs) && !uploading;
 
   return (
     <>
@@ -260,15 +266,16 @@ export default function Home() {
                   </div>
                 ) : clients.length === 0 ? (
                   !showCreateForm ? (
-                    <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
-                      <div style={{ width: 48, height: 48, background: "rgba(99,102,241,0.1)", border: "0.5px solid rgba(99,102,241,0.2)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 1rem", fontSize: 20 }}>👤</div>
-                      <p style={{ fontSize: 14, fontWeight: 600, color: "#fff", marginBottom: 6 }}>No client yet</p>
-                      <p style={{ fontSize: 12, color: "rgba(255,255,255,0.35)", marginBottom: "1.25rem", lineHeight: 1.6 }}>Create your profile before uploading documents.</p>
+                    <div style={{ padding: "1rem 0" }}>
+                      <div style={{ padding: "12px 14px", background: "rgba(99,102,241,0.08)", border: "0.5px solid rgba(99,102,241,0.2)", borderRadius: 12, marginBottom: 12 }}>
+                        <p style={{ fontSize: 13, fontWeight: 600, color: "#a5b4fc", marginBottom: 4 }}>⚡ Drop your 2307 or 1701A</p>
+                        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>We'll extract your name and TIN automatically and create your profile.</p>
+                      </div>
                       <button
                         onClick={() => setShowCreateForm(true)}
-                        style={{ padding: "10px 20px", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", border: "none", borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "inherit" }}
+                        style={{ width: "100%", padding: "9px", background: "transparent", color: "rgba(255,255,255,0.3)", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 10, fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
                       >
-                        + Create client
+                        Or create client manually
                       </button>
                     </div>
                   ) : (
