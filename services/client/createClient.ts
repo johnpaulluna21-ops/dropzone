@@ -1,17 +1,5 @@
-/**
- * services/client/createClient.ts
- *
- * Creates a new client record in the database.
- * Optionally saves a prior year excess credit if provided.
- */
-
-import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { createClient as createSupabaseClient } from "@/lib/supabase/client";
 import { type ClientRecord } from "@/core/types/client";
-
-const supabase = createSupabaseClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 export interface CreateClientInput {
   name: string;
@@ -28,29 +16,18 @@ export interface CreateClientInput {
 export async function createClient(
   input: CreateClientInput
 ): Promise<ClientRecord> {
-  const { data, error } = await supabase
-    .from("clients")
-    .insert({
-      name: input.name,
-      tin: input.tin,
-      tax_type: input.tax_type,
-      last_name: input.last_name,
-      first_name: input.first_name,
-      middle_name: input.middle_name,
-      rdo_code: input.rdo_code,
-    })
-    .select()
-    .single();
+  const supabase = createSupabaseClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) throw new Error("Unauthorized");
 
-  if (error) throw new Error("Error adding client: " + error.message);
+  const res = await fetch("/api/admin/clients", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ ...input, user_id: user.id }),
+  });
 
-  if (input.prior_year_credit && input.credit_year) {
-    await supabase.from("prior_year_credits").insert({
-      client_id: data.id,
-      year: input.credit_year,
-      excess_credit: input.prior_year_credit,
-    });
-  }
+  const result = await res.json();
+  if (!res.ok) throw new Error("Error adding client: " + result.error);
 
-  return data as ClientRecord;
+  return result.data as ClientRecord;
 }
