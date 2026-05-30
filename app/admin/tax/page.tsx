@@ -11,6 +11,7 @@ import {
   normalizeTin,
   type ExtractedForm,
 } from "@/lib/sawt";
+import { generateSAWTExcel } from "@/lib/sawt/excel";
 import * as XLSX from "xlsx";
 import {
   fetchClient2307s,
@@ -334,18 +335,21 @@ export default function TaxPage() {
   }, [editingClient, editTaxType, editLastName, editFirstName, editMiddleName, editRdo, editAddress, editCredit, editCreditYear, editPayments, deletedPayments, selected, year, computeSummary]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleGenerateSAWT = (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
-    const result = generateSAWTContent(
-      { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" },
-      quarterNum, quarterForms, year
-    );
+    const clientInput = { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" };
+    const result = generateSAWTContent(clientInput, quarterNum, quarterForms, year);
+
+    // Download DAT file
     fallbackDownload(result.datFilename, result.datContent, "text/plain");
-    const printWindow = window.open("", "_blank", "width=900,height=600");
-    if (printWindow) {
-      printWindow.document.write(result.html);
-      printWindow.document.close();
-      printWindow.focus();
-      setTimeout(() => { printWindow.print(); }, 500);
-    }
+
+    // Download Excel report
+    const { buffer, filename } = generateSAWTExcel(clientInput, quarterNum, quarterForms, year, result.fullName, result.displayTin);
+    const blob = new Blob([buffer as unknown as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const handleSendToBIR = async (client: any, quarterNum: number, quarterForms: ExtractedForm[]) => {
