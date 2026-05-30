@@ -43,7 +43,7 @@ export function generateSAWTExcel(
 
   // ── Header block ──
   wsData.push(["BIR FORM 1701Q"]);
-  wsData.push(["SUMMARY ALPHALIST OF WITHHOLDING TAXES (SAVT)"]);
+  wsData.push(["SUMMARY ALPHALIST OF WITHHOLDING TAXES (SAWT)"]);
   wsData.push([`FOR THE MONTH OF ${monthName}, ${yearStr}`]);
   wsData.push([]);
   wsData.push([`TIN : ${displayTin}`]);
