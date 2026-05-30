@@ -619,6 +619,8 @@ export function generateSAWTContent(
     datContent,
     datFilename,
     html,
+    excelBuffer: new Uint8Array(),
+    excelFilename: datFilename.replace(".dat", ".xlsx"),
     tinMain,
     tinBranch,
     displayTin,
