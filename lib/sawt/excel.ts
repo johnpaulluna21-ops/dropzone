@@ -131,7 +131,7 @@ export function generateSAWTExcel(
     { wch: 20 },  // I - AMOUNT OF TAX WITHHELD
   ];
 // ── Number formatting ──
-  const dataStartRow = 11; // row index where data rows begin (0-based)
+  const dataStartRow = 10; // row index where data rows begin (0-based)
   const dataEndRow = dataStartRow + quarterForms.length - 1;
 
   for (let r = dataStartRow; r <= dataEndRow; r++) {
