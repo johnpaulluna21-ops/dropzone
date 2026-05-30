@@ -385,7 +385,7 @@ export function BatchSAWTModal({
             </span>
             ,{" "}
             <span style={{ color: "#a5b4fc", fontWeight: 600 }}>
-              {selectedCount} HTML
+              {selectedCount} Excel
             </span>
             ,{" "}
             <span style={{ color: "#a5b4fc", fontWeight: 600 }}>

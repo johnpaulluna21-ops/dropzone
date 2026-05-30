@@ -497,15 +497,26 @@ export default function TaxPage() {
         qNum, forms, year
       );
       emailQueue.push({ client, datContent: result.datContent, datFilename: result.datFilename, quarterNum: qNum });
-      const htmlFilename = `SAWT-${result.datFilename.replace(".DAT", "")}-${clientLabel}.html`;
-      const htmlWithPrint = result.html.replace("</body>", `<script>window.onload=function(){window.print();}<\/script></body>`);
+      const clientInput = { tin: client.tin || "", lastName: client.last_name || "", firstName: client.first_name || "", middleName: client.middle_name || "", rdoCode: client.rdo_code || "" };
+      const { buffer: excelBuffer, filename: excelFilename } = generateSAWTExcel(clientInput, qNum, forms, year, result.fullName, result.displayTin);
+
       if (dirHandle) {
         await writeFileToDir(dirHandle, result.datFilename, result.datContent, "text/plain");
-        await writeFileToDir(dirHandle, htmlFilename, htmlWithPrint, "text/html");
+        const excelBlob = new Blob([excelBuffer as unknown as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const excelHandle = await dirHandle.getFileHandle(excelFilename, { create: true });
+        const writable = await excelHandle.createWritable();
+        await writable.write(excelBlob);
+        await writable.close();
       } else {
         fallbackDownload(`${folderName}_${result.datFilename}`, result.datContent, "text/plain");
         await new Promise(r => setTimeout(r, 400));
-        fallbackDownload(`${folderName}_${htmlFilename}`, htmlWithPrint, "text/html");
+        const excelBlob = new Blob([excelBuffer as unknown as ArrayBuffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" });
+        const url = URL.createObjectURL(excelBlob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `${folderName}_${excelFilename}`;
+        a.click();
+        URL.revokeObjectURL(url);
         await new Promise(r => setTimeout(r, 800));
       }
     }
