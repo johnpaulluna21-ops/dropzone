@@ -32,9 +32,10 @@ export async function updateSession(request: NextRequest) {
   // Public routes — no auth required
   const publicRoutes = ['/', '/login', '/signup', '/forgot-password']
   const isPublicRoute = publicRoutes.includes(pathname)
+  const isAdminRoute = pathname.startsWith('/admin')
 
   // If not logged in and trying to access protected route → login
-  if (!user && !isPublicRoute) {
+  if (!user && !isPublicRoute && !isAdminRoute) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
     return NextResponse.redirect(url)
