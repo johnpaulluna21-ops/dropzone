@@ -28,7 +28,11 @@ export default function UploadWorkspace() {
         .from("clients")
         .select("id, name, first_name, last_name")
         .order("last_name", { ascending: true });
-      setClients(data || []);
+      const clientList = data || [];
+      setClients(clientList);
+      if (clientList.length === 1) {
+        setSelectedClientId(clientList[0].id);
+      }
       setClientsLoading(false);
     };
     fetchClients();
@@ -136,7 +140,6 @@ export default function UploadWorkspace() {
           borderRadius: "50%",
           display: "flex", alignItems: "center", justifyContent: "center",
           margin: "0 auto 1.5rem",
-          animation: "checkPop 0.4s ease both",
         }}>
           <span style={{ fontSize: 24 }}>✓</span>
         </div>
@@ -167,51 +170,53 @@ export default function UploadWorkspace() {
 
   return (
     <div>
-      {/* Client Selector */}
-      <div style={{ marginBottom: "1.25rem" }}>
-        <label style={{
-          display: "block", fontSize: 11, fontWeight: 600,
-          color: "rgba(255,255,255,0.3)", letterSpacing: "0.5px",
-          textTransform: "uppercase", marginBottom: 8,
-        }}>
-          Client
-        </label>
-        {clientsLoading ? (
-          <div style={{
-            padding: "11px 14px", background: "#111",
-            border: "0.5px solid rgba(255,255,255,0.08)",
-            borderRadius: 12, fontSize: 13, color: "rgba(255,255,255,0.2)",
+      {/* Client Selector — only show if multiple clients */}
+      {clients.length > 1 && (
+        <div style={{ marginBottom: "1.25rem" }}>
+          <label style={{
+            display: "block", fontSize: 11, fontWeight: 600,
+            color: "rgba(255,255,255,0.3)", letterSpacing: "0.5px",
+            textTransform: "uppercase", marginBottom: 8,
           }}>
-            Loading clients...
-          </div>
-        ) : (
-          <select
-            value={selectedClientId}
-            onChange={(e) => setSelectedClientId(e.target.value)}
-            style={{
-              width: "100%", padding: "11px 14px",
-              background: "#111",
-              border: `0.5px solid ${selectedClientId ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)"}`,
-              borderRadius: 12,
-              color: selectedClientId ? "#fff" : "rgba(255,255,255,0.3)",
-              fontSize: 13, fontFamily: "inherit", cursor: "pointer",
-              outline: "none", transition: "border-color 0.2s ease",
-              appearance: "none",
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "right 14px center",
-              paddingRight: 36,
-            }}
-          >
-            <option value="" disabled>Select a client...</option>
-            {clients.map(client => (
-              <option key={client.id} value={client.id}>
-                {getClientDisplayName(client)}
-              </option>
-            ))}
-          </select>
-        )}
-      </div>
+            Client
+          </label>
+          {clientsLoading ? (
+            <div style={{
+              padding: "11px 14px", background: "#111",
+              border: "0.5px solid rgba(255,255,255,0.08)",
+              borderRadius: 12, fontSize: 13, color: "rgba(255,255,255,0.2)",
+            }}>
+              Loading clients...
+            </div>
+          ) : (
+            <select
+              value={selectedClientId}
+              onChange={(e) => setSelectedClientId(e.target.value)}
+              style={{
+                width: "100%", padding: "11px 14px",
+                background: "#111",
+                border: `0.5px solid ${selectedClientId ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)"}`,
+                borderRadius: 12,
+                color: selectedClientId ? "#fff" : "rgba(255,255,255,0.3)",
+                fontSize: 13, fontFamily: "inherit", cursor: "pointer",
+                outline: "none", transition: "border-color 0.2s ease",
+                appearance: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 14px center",
+                paddingRight: 36,
+              }}
+            >
+              <option value="" disabled>Select a client...</option>
+              {clients.map(client => (
+                <option key={client.id} value={client.id}>
+                  {getClientDisplayName(client)}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+      )}
 
       {/* Dropzone */}
       <div
@@ -324,8 +329,8 @@ export default function UploadWorkspace() {
         </div>
       )}
 
-      {/* No client warning */}
-      {files.length > 0 && !selectedClientId && (
+      {/* No client warning — only show if multiple clients */}
+      {files.length > 0 && !selectedClientId && clients.length > 1 && (
         <div style={{
           padding: "10px 14px",
           background: "rgba(239,68,68,0.08)",
