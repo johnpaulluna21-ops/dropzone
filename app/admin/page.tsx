@@ -1,16 +1,14 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
-import { createClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/client";
+const supabase = createClient();
 import * as XLSX from "xlsx";
 import Link from "next/link";
 import { PDFPreview } from "@/components/tax/PDFPreview";
 import { Button, Badge, Card, EmptyState } from "@/components/ui";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
+
 
 const PAGE_SIZE = 20;
 

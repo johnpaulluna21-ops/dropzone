@@ -110,6 +110,8 @@ export interface SAWTGenerationResult {
   datContent: string;
   datFilename: string;
   html: string;
+  excelBuffer: Uint8Array;
+  excelFilename: string;
   tinMain: string;
   tinBranch: string;
   displayTin: string;
@@ -127,6 +129,12 @@ export interface ExtractedForm {
   atc?: string;
   total_income?: string | number;
   total_tax_withheld?: string | number;
+  month_1_income?: string | number;
+  month_2_income?: string | number;
+  month_3_income?: string | number;
+  month_1_tax?: string | number;
+  month_2_tax?: string | number;
+  month_3_tax?: string | number;
   period_to?: string;
   period_from?: string;
   payee_tin?: string;
@@ -605,6 +613,8 @@ export function generateSAWTContent(
 <div class="footer">END OF REPORT</div>
 </body></html>`;
 
+  
+
   return {
     datContent,
     datFilename,
@@ -619,7 +629,7 @@ export function generateSAWTContent(
   };
 }
 
-
+// ── 8. FILE I/O HELPERS
 // ── 8. FILE I/O HELPERS (browser-side only) ───────────────────────────────────
 // These touch the browser filesystem — kept here so the page doesn't need to
 // know about Blobs/URLs directly, but still separated from pure logic above.
