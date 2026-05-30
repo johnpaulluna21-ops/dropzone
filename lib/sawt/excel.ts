@@ -13,7 +13,7 @@
 
 import * as XLSX from "xlsx";
 import type { SAWTClientInput, ExtractedForm } from "./index";
-import { parseAmount, deriveAtc, normalizeTin, SAWT_SCHEMA } from "./index";
+import { parseAmount, deriveAtc, SAWT_SCHEMA } from "./index";
 import { ATC_DESCRIPTIONS } from "./atc-descriptions";
 
 const MONTHS_LIST = [
@@ -39,7 +39,7 @@ export function generateSAWTExcel(
   const excelFilename = `SAWT-${displayTin}-Q${quarterNum}-${yearStr}.xlsx`;
 
   const wb = XLSX.utils.book_new();
-  const wsData: any[][] = [];
+  const wsData: (string | number)[][] = [];
 
   // ── Header block ──
   wsData.push(["BIR FORM 1701Q"]);
