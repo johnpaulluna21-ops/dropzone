@@ -1,5 +1,18 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
+
+interface Client {
+  id: string;
+  name: string;
+  first_name: string | null;
+  last_name: string | null;
+}
 
 export default function Home() {
   const [files, setFiles] = useState<File[]>([]);
@@ -8,6 +21,28 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState<string[]>([]);
   const [duplicates, setDuplicates] = useState<string[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [selectedClientId, setSelectedClientId] = useState<string>("");
+  const [clientsLoading, setClientsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchClients = async () => {
+      const { data } = await supabase
+        .from("clients")
+        .select("id, name, first_name, last_name")
+        .order("last_name", { ascending: true });
+      setClients(data || []);
+      setClientsLoading(false);
+    };
+    fetchClients();
+  }, []);
+
+  const getClientDisplayName = (client: Client) => {
+    if (client.last_name && client.first_name) {
+      return `${client.last_name}, ${client.first_name}`;
+    }
+    return client.name;
+  };
 
   const checkDuplicates = async (fileList: File[]) => {
     try {
@@ -51,7 +86,7 @@ export default function Home() {
   };
 
   const handleUpload = async () => {
-    if (files.length === 0) return;
+    if (files.length === 0 || !selectedClientId) return;
     setUploading(true);
     setProgress([]);
     const results: string[] = new Array(files.length).fill("");
@@ -63,10 +98,15 @@ export default function Home() {
         const idx = i + batchIdx;
         const formData = new FormData();
         formData.append("file", file);
+        formData.append("client_id", selectedClientId);
         try {
           const res = await fetch("/api/upload", { method: "POST", body: formData });
           const data = await res.json();
-          results[idx] = data.success ? `✅ ${file.name}` : (data.error === "duplicate" || data.message?.includes("already")) ? `⚠️ ${file.name} — already uploaded, skipped` : `❌ ${file.name} — failed`;
+          results[idx] = data.success
+            ? `✅ ${file.name}`
+            : (data.error === "duplicate" || data.message?.includes("already"))
+            ? `⚠️ ${file.name} — already uploaded, skipped`
+            : `❌ ${file.name} — failed`;
         } catch {
           results[idx] = `❌ ${file.name} — error`;
         }
@@ -86,6 +126,8 @@ export default function Home() {
   };
 
   const hasDuplicates = files.some(f => duplicates.includes(f.name));
+  const selectedClient = clients.find(c => c.id === selectedClientId);
+  const canUpload = files.length > 0 && !!selectedClientId && !uploading;
 
   return (
     <>
@@ -98,6 +140,7 @@ export default function Home() {
         @keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
         @keyframes checkPop { 0% { transform: scale(0); opacity: 0; } 70% { transform: scale(1.2); } 100% { transform: scale(1); opacity: 1; } }
         @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .client-option:hover { background: rgba(99,102,241,0.08) !important; }
       `}</style>
 
       <main style={{
@@ -112,6 +155,7 @@ export default function Home() {
         fontFamily: "'Inter', sans-serif",
       }}>
 
+        {/* Logo */}
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: "2.5rem", animation: "fadeUp 0.5s ease both" }}>
           <div style={{ width: 38, height: 38, background: "linear-gradient(135deg, #6366f1, #8b5cf6)", borderRadius: 10, display: "flex", alignItems: "center", justifyContent: "center" }}>
             <i className="ti ti-inbox" style={{ color: "#fff", fontSize: 18 }} />
@@ -136,7 +180,14 @@ export default function Home() {
                 <i className="ti ti-check" style={{ fontSize: 26, color: "#14b8a6" }} />
               </div>
               <p style={{ fontSize: 18, fontWeight: 600, color: "#fff", marginBottom: 8, letterSpacing: "-0.3px" }}>Documents received</p>
-              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: "2rem", lineHeight: 1.6 }}>Your files are being processed. We&apos;ll extract and organize the data automatically.</p>
+              {selectedClient && (
+                <p style={{ fontSize: 13, color: "rgba(99,102,241,0.8)", marginBottom: 8, fontWeight: 500 }}>
+                  Filed under: {getClientDisplayName(selectedClient)}
+                </p>
+              )}
+              <p style={{ fontSize: 13, color: "rgba(255,255,255,0.4)", marginBottom: "2rem", lineHeight: 1.6 }}>
+                Your files are being processed. We&apos;ll extract and organize the data automatically.
+              </p>
               <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: "2rem", textAlign: "left" }}>
                 {[
                   { icon: "ti-check", label: "Files uploaded", sub: "Stored securely in encrypted storage", color: "rgba(20,184,166,0.15)", textColor: "#14b8a6", done: true },
@@ -154,7 +205,10 @@ export default function Home() {
                   </div>
                 ))}
               </div>
-              <button onClick={() => { setSuccess(false); setProgress([]); }} style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}>
+              <button
+                onClick={() => { setSuccess(false); setProgress([]); }}
+                style={{ fontSize: 13, color: "rgba(255,255,255,0.35)", background: "none", border: "none", cursor: "pointer", fontFamily: "inherit" }}
+              >
                 ← Submit more files
               </button>
             </div>
@@ -165,6 +219,49 @@ export default function Home() {
                 <p style={{ fontSize: 14, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>Upload files and we&apos;ll extract, organize, and deliver the data — automatically.</p>
               </div>
 
+              {/* Client Selector */}
+              <div style={{ marginBottom: "1.25rem" }}>
+                <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "rgba(255,255,255,0.3)", letterSpacing: "0.5px", textTransform: "uppercase", marginBottom: 8 }}>
+                  Client
+                </label>
+                {clientsLoading ? (
+                  <div style={{ padding: "11px 14px", background: "#111", border: "0.5px solid rgba(255,255,255,0.08)", borderRadius: 12, fontSize: 13, color: "rgba(255,255,255,0.2)" }}>
+                    Loading clients...
+                  </div>
+                ) : (
+                  <select
+                    value={selectedClientId}
+                    onChange={(e) => setSelectedClientId(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "11px 14px",
+                      background: "#111",
+                      border: `0.5px solid ${selectedClientId ? "rgba(99,102,241,0.4)" : "rgba(255,255,255,0.08)"}`,
+                      borderRadius: 12,
+                      color: selectedClientId ? "#fff" : "rgba(255,255,255,0.3)",
+                      fontSize: 13,
+                      fontFamily: "inherit",
+                      cursor: "pointer",
+                      outline: "none",
+                      transition: "border-color 0.2s ease",
+                      appearance: "none",
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(255,255,255,0.3)' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "right 14px center",
+                      paddingRight: 36,
+                    }}
+                  >
+                    <option value="" disabled>Select a client...</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>
+                        {getClientDisplayName(client)}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {/* Dropzone */}
               <div
                 onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
                 onDragLeave={() => setDragging(false)}
@@ -195,7 +292,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Remove duplicates banner */}
+              {/* Duplicate banner */}
               {hasDuplicates && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 14px", background: "rgba(245,158,11,0.08)", border: "0.5px solid rgba(245,158,11,0.25)", borderRadius: 12, marginBottom: "1rem" }}>
                   <p style={{ fontSize: 12, color: "#fcd34d" }}>⚠️ {duplicates.length} duplicate file{duplicates.length > 1 ? "s" : ""} detected</p>
@@ -205,6 +302,7 @@ export default function Home() {
                 </div>
               )}
 
+              {/* File list */}
               {files.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: "1.25rem", maxHeight: 280, overflowY: "auto" }}>
                   {files.map((file, i) => {
@@ -227,32 +325,45 @@ export default function Home() {
                 </div>
               )}
 
+              {/* Progress */}
               {progress.length > 0 && (
                 <div style={{ marginBottom: "1.25rem" }}>
                   {progress.map((p, i) => <p key={i} style={{ fontSize: 12, color: "rgba(255,255,255,0.5)", marginBottom: 4 }}>{p}</p>)}
                 </div>
               )}
 
+              {/* No client warning */}
+              {files.length > 0 && !selectedClientId && (
+                <div style={{ padding: "10px 14px", background: "rgba(239,68,68,0.08)", border: "0.5px solid rgba(239,68,68,0.2)", borderRadius: 12, marginBottom: "1rem" }}>
+                  <p style={{ fontSize: 12, color: "rgba(239,68,68,0.8)" }}>⚠️ Please select a client before uploading</p>
+                </div>
+              )}
+
+              {/* Submit button */}
               <button
                 onClick={handleUpload}
-                disabled={files.length === 0 || uploading}
+                disabled={!canUpload}
                 style={{
                   width: "100%",
                   padding: 14,
-                  background: files.length === 0 || uploading ? "rgba(255,255,255,0.08)" : "linear-gradient(135deg, #6366f1, #8b5cf6)",
+                  background: canUpload ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.08)",
                   color: "#fff",
                   border: "none",
                   borderRadius: 12,
                   fontSize: 14,
                   fontWeight: 600,
-                  cursor: files.length === 0 || uploading ? "not-allowed" : "pointer",
-                  opacity: files.length === 0 || uploading ? 0.4 : 1,
+                  cursor: canUpload ? "pointer" : "not-allowed",
+                  opacity: canUpload ? 1 : 0.4,
                   transition: "all 0.2s ease",
                   fontFamily: "inherit",
                   letterSpacing: "-0.1px",
                 }}
               >
-                {uploading ? `Uploading...` : files.length > 0 ? `Submit ${files.length} document${files.length !== 1 ? "s" : ""} →` : "Submit documents"}
+                {uploading
+                  ? "Uploading..."
+                  : files.length > 0 && selectedClientId
+                  ? `Submit ${files.length} document${files.length !== 1 ? "s" : ""} →`
+                  : "Submit documents"}
               </button>
             </>
           )}

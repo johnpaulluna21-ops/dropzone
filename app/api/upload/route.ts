@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
     const file = formData.get("file") as File;
+    const clientId = formData.get("client_id") as string | null;
+
     if (!file) return NextResponse.json({ error: "No file" }, { status: 400 });
 
     // Check for duplicate filename
@@ -32,9 +34,9 @@ export async function POST(request: NextRequest) {
       .limit(1);
 
     if (existing && existing.length > 0) {
-      return NextResponse.json({ 
-        error: "duplicate", 
-        message: `${file.name} has already been uploaded.` 
+      return NextResponse.json({
+        error: "duplicate",
+        message: `${file.name} has already been uploaded.`,
       }, { status: 409 });
     }
 
@@ -56,6 +58,7 @@ export async function POST(request: NextRequest) {
       file_type: file.type,
       r2_key: r2Key,
       status: "pending",
+      client_id: clientId ?? null,
     });
 
     return NextResponse.json({ success: true });
