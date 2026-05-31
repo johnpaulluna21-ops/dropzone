@@ -269,7 +269,7 @@ export default function Home() {
                     <div style={{ padding: "1rem 0" }}>
                       <div style={{ padding: "12px 14px", background: "rgba(99,102,241,0.08)", border: "0.5px solid rgba(99,102,241,0.2)", borderRadius: 12, marginBottom: 12 }}>
                         <p style={{ fontSize: 13, fontWeight: 600, color: "#a5b4fc", marginBottom: 4 }}>⚡ Drop your 2307 or 1701A</p>
-                        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>We'll extract your name and TIN automatically and create your profile.</p>
+                        <p style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", lineHeight: 1.6 }}>We&apos;ll extract your name and TIN automatically and create your profile.</p>
                       </div>
                       <button
                         onClick={() => setShowCreateForm(true)}
